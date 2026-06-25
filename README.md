@@ -2,7 +2,7 @@
 
 A CLI for backing up and restoring [Meshtastic](https://meshtastic.org/) device configs over USB serial.
 
-Backups are stored under a `working/` folder in the repo root, one subfolder per device named by the device's own node id (e.g. `!a1b2c3d4`), with one timestamped JSON file per backup. `working/` is gitignored because backups can contain device private/admin keys.
+Backups are stored under a `working/` folder in the repo root, one subfolder per device named by the device's own node id (e.g. `!a1b2c3d4`), with one timestamped JSON file per backup. Shared channel sets (see `export-channels`/`import-channels` below) live under `working/channels/`, one named file each. `working/` is gitignored because backups and channel sets can contain device private/admin keys and channel encryption keys.
 
 ## Setup
 
@@ -54,6 +54,24 @@ List known devices and their backups.
 ```
 uv run meshprogrammer list
 uv run mesh-list
+```
+
+### `export-channels` / `mesh-export-channels`
+
+Save a connected device's channels (and the LoRa modem config they depend on) to a named, sharable file under `working/channels/<name>.json`.
+
+```
+uv run meshprogrammer export-channels --port COM5 office
+uv run mesh-export-channels --port COM5 office
+```
+
+### `import-channels` / `mesh-import-channels`
+
+Apply a saved channel set to a connected device. This **overwrites** the device's existing channels by index (channel 0 becomes the saved primary, channel 1 the first saved secondary, etc.) and updates its LoRa modem config to match -- the same behavior as scanning a Meshtastic channel QR code. Any extra channel already on the device beyond the saved set's count is left alone, not disabled.
+
+```
+uv run meshprogrammer import-channels --port COM5 office
+uv run mesh-import-channels --port COM5 office
 ```
 
 ### `--working-dir`

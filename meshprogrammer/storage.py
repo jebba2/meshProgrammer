@@ -1,7 +1,11 @@
-"""Filesystem layout for device config backups.
+"""Filesystem layout for device config backups and shared channel sets.
 
 Backups live under a working directory, one subfolder per device (named by
 the device's Meshtastic node id), with one timestamped JSON file per backup.
+
+Channel sets are not tied to one device -- they're meant to be shared across
+many -- so they live under a single ``channels`` subfolder, one named JSON
+file per saved set.
 """
 
 import json
@@ -62,3 +66,26 @@ def latest_backup(working_dir: Path, node_id: str) -> Path | None:
     """Return the most recent backup for ``node_id``, or None if there isn't one."""
     backups = list_backups(working_dir, node_id)
     return backups[0] if backups else None
+
+
+def channels_path(working_dir: Path, name: str) -> Path:
+    """Return the path a saved channel set named ``name`` would be written to."""
+    return working_dir / "channels" / f"{name}.json"
+
+
+def write_channels(working_dir: Path, name: str, channel_url: str) -> Path:
+    """Save ``channel_url`` as a named, sharable channel set.
+
+    Returns the path it was written to.
+    """
+    path = channels_path(working_dir, name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"channel_url": channel_url}, indent=2))
+    return path
+
+
+def read_channels(working_dir: Path, name: str) -> str:
+    """Return the channel URL previously saved as ``name``."""
+    path = channels_path(working_dir, name)
+    data = json.loads(path.read_text())
+    return data["channel_url"]

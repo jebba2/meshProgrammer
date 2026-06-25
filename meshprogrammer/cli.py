@@ -60,6 +60,25 @@ def build_parser() -> argparse.ArgumentParser:
     list_parser = subparsers.add_parser("list", help="List known devices and their backups")
     _add_working_dir_arg(list_parser)
 
+    export_channels_parser = subparsers.add_parser(
+        "export-channels", help="Save a connected device's channels to a named, sharable file"
+    )
+    _add_working_dir_arg(export_channels_parser)
+    export_channels_parser.add_argument(
+        "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
+    )
+    export_channels_parser.add_argument("name", help="Name to save the channel set as")
+
+    import_channels_parser = subparsers.add_parser(
+        "import-channels",
+        help="Apply a saved channel set to a connected device, overwriting its current channels",
+    )
+    _add_working_dir_arg(import_channels_parser)
+    import_channels_parser.add_argument(
+        "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
+    )
+    import_channels_parser.add_argument("name", help="Name of the saved channel set to apply")
+
     return parser
 
 
@@ -129,6 +148,29 @@ def run_list(working_dir: Path) -> int:
     return 0
 
 
+def run_export_channels(working_dir: Path, port: str, name: str) -> int:
+    """Save the connected device's channels to a named, sharable file."""
+    with device.open_device(port) as interface:
+        channel_url = device.export_channel_url(interface)
+    path = storage.write_channels(working_dir, name, channel_url)
+    print(f"Saved channels as '{name}' to {path}")
+    return 0
+
+
+def run_import_channels(working_dir: Path, port: str, name: str) -> int:
+    """Apply a saved channel set to the connected device, overwriting its current channels."""
+    try:
+        channel_url = storage.read_channels(working_dir, name)
+    except FileNotFoundError:
+        print(f"No saved channel set named '{name}' in {working_dir}")
+        return 1
+
+    with device.open_device(port) as interface:
+        device.import_channel_url(interface, channel_url)
+    print(f"Applied channel set '{name}' to device on {port}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -141,6 +183,10 @@ def main(argv: list[str] | None = None) -> int:
         return run_restore(args.working_dir, args.port, args.file, args.node_id)
     if args.command == "list":
         return run_list(args.working_dir)
+    if args.command == "export-channels":
+        return run_export_channels(args.working_dir, args.port, args.name)
+    if args.command == "import-channels":
+        return run_import_channels(args.working_dir, args.port, args.name)
 
     parser.error(f"Unknown command: {args.command}")
     return 1
@@ -170,6 +216,16 @@ def restore_entry_point(argv: list[str] | None = None) -> int:
 def list_entry_point(argv: list[str] | None = None) -> int:
     """Console-script shortcut for ``meshprogrammer list``."""
     return _run_subcommand("list", argv)
+
+
+def export_channels_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer export-channels``."""
+    return _run_subcommand("export-channels", argv)
+
+
+def import_channels_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer import-channels``."""
+    return _run_subcommand("import-channels", argv)
 
 
 if __name__ == "__main__":

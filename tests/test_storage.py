@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 from meshprogrammer import storage
 
 
@@ -73,3 +75,21 @@ def test_latest_backup_returns_most_recent(tmp_path: Path) -> None:
 
 def test_latest_backup_for_unknown_device_returns_none(tmp_path: Path) -> None:
     assert storage.latest_backup(tmp_path, "!unknown") is None
+
+
+def test_channels_path_is_named_json_under_channels_subdir(tmp_path: Path) -> None:
+    result = storage.channels_path(tmp_path, "office")
+
+    assert result == tmp_path / "channels" / "office.json"
+
+
+def test_write_channels_then_read_channels_round_trips(tmp_path: Path) -> None:
+    written = storage.write_channels(tmp_path, "office", "https://meshtastic.org/e/#abc123")
+
+    assert written.exists()
+    assert storage.read_channels(tmp_path, "office") == "https://meshtastic.org/e/#abc123"
+
+
+def test_read_channels_for_unknown_name_raises_file_not_found(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        storage.read_channels(tmp_path, "missing")

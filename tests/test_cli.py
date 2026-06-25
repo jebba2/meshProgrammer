@@ -126,3 +126,66 @@ def test_run_list_prints_devices_and_backup_counts(
     assert result == 0
     assert "!a1b2c3d4" in out
     assert "backup-20260624T153000Z.json" in out
+
+
+def test_build_parser_export_channels_requires_port() -> None:
+    parser = cli.build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["export-channels", "office"])
+
+
+def test_build_parser_export_channels_parses_port_and_name() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["export-channels", "--port", "COM3", "office"])
+
+    assert args.command == "export-channels"
+    assert args.port == "COM3"
+    assert args.name == "office"
+
+
+def test_build_parser_import_channels_requires_port() -> None:
+    parser = cli.build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["import-channels", "office"])
+
+
+def test_build_parser_import_channels_parses_port_and_name() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["import-channels", "--port", "COM3", "office"])
+
+    assert args.command == "import-channels"
+    assert args.port == "COM3"
+    assert args.name == "office"
+
+
+def test_build_parser_export_channels_accepts_working_dir() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(
+        ["export-channels", "--port", "COM3", "--working-dir", "/tmp/foo", "office"]
+    )
+
+    assert args.working_dir == Path("/tmp/foo")
+
+
+def test_export_channels_entry_point_requires_port() -> None:
+    with pytest.raises(SystemExit):
+        cli.export_channels_entry_point(["office"])
+
+
+def test_import_channels_entry_point_requires_port() -> None:
+    with pytest.raises(SystemExit):
+        cli.import_channels_entry_point(["office"])
+
+
+def test_run_import_channels_reports_missing_channel_set(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = cli.run_import_channels(tmp_path, "COM3", "missing")
+
+    assert result == 1
+    assert "No saved channel set named 'missing'" in capsys.readouterr().out
