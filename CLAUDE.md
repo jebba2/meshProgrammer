@@ -119,6 +119,7 @@ You always find and fix the root cause of a problem, rather than adding a workar
 ## UV
 - We use Python's UV for package and script management
 - If the application is a CLI, always create script shortcut commands in pyproject.toml
+- add instructions to setup uv and a link to uv in the readme.md under setup
 
 ## PYLANCE
 - Always make sure that all code created does not have any pylance errors
