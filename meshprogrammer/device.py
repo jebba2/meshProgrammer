@@ -101,3 +101,18 @@ def restore_to_interface(interface: SerialInterface, backup: BackupData) -> None
 
     if backup.channel_url is not None:
         node.setURL(backup.channel_url)
+
+
+def export_channel_url(interface: SerialInterface) -> str:
+    """Return the connected device's channels as a sharable channel URL."""
+    return interface.localNode.getURL(includeAll=True)
+
+
+def import_channel_url(interface: SerialInterface, channel_url: str) -> None:
+    """Apply a channel URL to the connected device, overwriting its current channels.
+
+    Matches the same overwrite-by-index behavior as scanning a channel QR
+    code in the official Meshtastic app, or running its CLI's --seturl: any
+    channel beyond the saved set's count is left as-is, not disabled.
+    """
+    interface.localNode.setURL(channel_url, addOnly=False)

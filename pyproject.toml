@@ -14,6 +14,8 @@ mesh-scan = "meshprogrammer.cli:scan_entry_point"
 mesh-backup = "meshprogrammer.cli:backup_entry_point"
 mesh-restore = "meshprogrammer.cli:restore_entry_point"
 mesh-list = "meshprogrammer.cli:list_entry_point"
+mesh-export-channels = "meshprogrammer.cli:export_channels_entry_point"
+mesh-import-channels = "meshprogrammer.cli:import_channels_entry_point"
 
 [build-system]
 requires = ["hatchling"]
