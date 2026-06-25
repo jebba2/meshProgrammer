@@ -1,7 +1,25 @@
 [project]
 name = "meshprogrammer"
 version = "0.1.0"
-description = "Add your description here"
+description = "CLI for backing up and restoring Meshtastic device configs"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "meshtastic>=2.7.9",
+]
+
+[project.scripts]
+meshprogrammer = "meshprogrammer.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.411",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -13,4 +13,7 @@ wheels/
 # CLAUDE
 .claude/
 
+# Device config backups (contain device private/admin keys)
+working/
+
 # GIT
