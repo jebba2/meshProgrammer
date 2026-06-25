@@ -6,6 +6,20 @@ Backups are stored under a `working/` folder in the repo root, one subfolder per
 
 ## Setup
 
+This project uses [uv](https://docs.astral.sh/uv/) for Python package and script management. If you don't have it installed:
+
+```
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+See the [uv installation guide](https://docs.astral.sh/uv/getting-started/installation/) for other options (pipx, Homebrew, etc.).
+
+Then install this project's dependencies:
+
 ```
 uv sync
 ```
