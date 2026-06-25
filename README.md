@@ -116,4 +116,4 @@ uv run pytest
 uv run pyright meshprogrammer main.py
 ```
 
-`meshprogrammer/device.py` talks directly to real hardware over serial and has no automated tests — it's verified manually against a real device. Everything else (`storage.py`, `backup.py`, `cli.py`) is covered by unit tests.
+`meshprogrammer/device.py` talks directly to real hardware over serial and has no automated tests -- everything else (`storage.py`, `backup.py`, `crypto.py`, `cli.py`) is covered by unit tests. See [TESTING.md](TESTING.md) for the manual checklist to run against a real device whenever device-facing behavior changes.
