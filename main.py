@@ -1,6 +1,6 @@
-def main():
-    print("Hello from meshprogrammer!")
+import sys
 
+from meshprogrammer.cli import main
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
