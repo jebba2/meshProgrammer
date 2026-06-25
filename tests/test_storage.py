@@ -84,10 +84,12 @@ def test_channels_path_is_named_json_under_channels_subdir(tmp_path: Path) -> No
 
 
 def test_write_channels_then_read_channels_round_trips(tmp_path: Path) -> None:
-    written = storage.write_channels(tmp_path, "office", "https://meshtastic.org/e/#abc123")
+    payload = {"channel_url": "https://meshtastic.org/e/#abc123"}
+
+    written = storage.write_channels(tmp_path, "office", payload)
 
     assert written.exists()
-    assert storage.read_channels(tmp_path, "office") == "https://meshtastic.org/e/#abc123"
+    assert storage.read_channels(tmp_path, "office") == payload
 
 
 def test_read_channels_for_unknown_name_raises_file_not_found(tmp_path: Path) -> None:

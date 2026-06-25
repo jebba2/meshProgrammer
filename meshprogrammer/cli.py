@@ -1,14 +1,16 @@
 """Command-line interface for backing up and restoring Meshtastic device configs."""
 
 import argparse
+import getpass
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from meshtastic.serial_interface import SerialInterface
 
 from meshprogrammer import backup as backup_module
-from meshprogrammer import device, storage
+from meshprogrammer import crypto, device, storage
 
 
 def _add_working_dir_arg(parser: argparse.ArgumentParser) -> None:
@@ -41,6 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
     backup_parser.add_argument(
         "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
     )
+    backup_parser.add_argument(
+        "--encrypt",
+        action="store_true",
+        help="Prompt for a password and encrypt the backup file",
+    )
 
     restore_parser = subparsers.add_parser("restore", help="Restore a backup onto a connected device")
     _add_working_dir_arg(restore_parser)
@@ -66,6 +73,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_working_dir_arg(export_channels_parser)
     export_channels_parser.add_argument(
         "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
+    )
+    export_channels_parser.add_argument(
+        "--encrypt",
+        action="store_true",
+        help="Prompt for a password and encrypt the saved channel set",
     )
     export_channels_parser.add_argument("name", help="Name to save the channel set as")
 
@@ -93,22 +105,65 @@ def run_scan() -> int:
     return 0
 
 
-def run_backup(working_dir: Path, port: str) -> int:
+def _prompt_new_password() -> str:
+    """Prompt for a new password, retrying until two entries match and it's non-empty."""
+    while True:
+        password = getpass.getpass("Encryption password: ")
+        if not password:
+            print("Password cannot be empty.")
+            continue
+        confirm = getpass.getpass("Confirm password: ")
+        if password != confirm:
+            print("Passwords did not match, try again.")
+            continue
+        return password
+
+
+def _prompt_existing_password() -> str:
+    return getpass.getpass("Password: ")
+
+
+def _decrypt_if_needed(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Return ``data`` as-is if it's a plain payload, or prompt and decrypt if encrypted.
+
+    Returns None (after printing an error) if the password was wrong.
+    """
+    if not crypto.is_encrypted(data):
+        return data
+    password = _prompt_existing_password()
+    try:
+        return crypto.decrypt_payload(data, password)
+    except crypto.WrongPasswordError:
+        print("Incorrect password.")
+        return None
+
+
+def run_backup(working_dir: Path, port: str, encrypt: bool) -> int:
     """Back up the config of the device connected on ``port``."""
     with device.open_device(port) as interface:
         payload = device.backup_from_interface(interface)
     node_id = payload["node_id"]
+    if encrypt:
+        payload = crypto.encrypt_payload(payload, _prompt_new_password())
     timestamp = datetime.now(timezone.utc)
     path = storage.write_backup(working_dir, node_id, payload, timestamp)
-    print(f"Backed up {node_id} to {path}")
+    print(f"Backed up {node_id} to {path}" + (" (encrypted)" if encrypt else ""))
     return 0
 
 
-def _apply_restore(interface: SerialInterface, backup_path: Path) -> None:
-    payload = storage.read_backup(backup_path)
-    parsed = backup_module.parse_backup_payload(payload)
+def _apply_restore(interface: SerialInterface, backup_path: Path) -> bool:
+    """Decrypt (if needed) and restore the backup at ``backup_path``.
+
+    Returns False (after printing an error) if an encrypted backup's
+    password was wrong.
+    """
+    data = _decrypt_if_needed(storage.read_backup(backup_path))
+    if data is None:
+        return False
+    parsed = backup_module.parse_backup_payload(data)
     device.restore_to_interface(interface, parsed)
     print(f"Restored {backup_path} to device")
+    return True
 
 
 def run_restore(working_dir: Path, port: str, file: Path | None, node_id: str | None) -> int:
@@ -120,7 +175,8 @@ def run_restore(working_dir: Path, port: str, file: Path | None, node_id: str | 
     """
     if file is not None:
         with device.open_device(port) as interface:
-            _apply_restore(interface, file)
+            if not _apply_restore(interface, file):
+                return 1
         return 0
 
     with device.open_device(port) as interface:
@@ -129,7 +185,8 @@ def run_restore(working_dir: Path, port: str, file: Path | None, node_id: str | 
         if backup_path is None:
             print(f"No backups found for {target_node_id} in {working_dir}")
             return 1
-        _apply_restore(interface, backup_path)
+        if not _apply_restore(interface, backup_path):
+            return 1
     return 0
 
 
@@ -148,25 +205,32 @@ def run_list(working_dir: Path) -> int:
     return 0
 
 
-def run_export_channels(working_dir: Path, port: str, name: str) -> int:
+def run_export_channels(working_dir: Path, port: str, name: str, encrypt: bool) -> int:
     """Save the connected device's channels to a named, sharable file."""
     with device.open_device(port) as interface:
         channel_url = device.export_channel_url(interface)
-    path = storage.write_channels(working_dir, name, channel_url)
-    print(f"Saved channels as '{name}' to {path}")
+    payload: dict[str, Any] = {"channel_url": channel_url}
+    if encrypt:
+        payload = crypto.encrypt_payload(payload, _prompt_new_password())
+    path = storage.write_channels(working_dir, name, payload)
+    print(f"Saved channels as '{name}' to {path}" + (" (encrypted)" if encrypt else ""))
     return 0
 
 
 def run_import_channels(working_dir: Path, port: str, name: str) -> int:
     """Apply a saved channel set to the connected device, overwriting its current channels."""
     try:
-        channel_url = storage.read_channels(working_dir, name)
+        data = storage.read_channels(working_dir, name)
     except FileNotFoundError:
         print(f"No saved channel set named '{name}' in {working_dir}")
         return 1
 
+    data = _decrypt_if_needed(data)
+    if data is None:
+        return 1
+
     with device.open_device(port) as interface:
-        device.import_channel_url(interface, channel_url)
+        device.import_channel_url(interface, data["channel_url"])
     print(f"Applied channel set '{name}' to device on {port}")
     return 0
 
@@ -178,13 +242,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "scan":
         return run_scan()
     if args.command == "backup":
-        return run_backup(args.working_dir, args.port)
+        return run_backup(args.working_dir, args.port, args.encrypt)
     if args.command == "restore":
         return run_restore(args.working_dir, args.port, args.file, args.node_id)
     if args.command == "list":
         return run_list(args.working_dir)
     if args.command == "export-channels":
-        return run_export_channels(args.working_dir, args.port, args.name)
+        return run_export_channels(args.working_dir, args.port, args.name, args.encrypt)
     if args.command == "import-channels":
         return run_import_channels(args.working_dir, args.port, args.name)
 

@@ -2,8 +2,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from meshtastic.protobuf import localonly_pb2
 
-from meshprogrammer import cli, storage
+from meshprogrammer import backup as backup_module
+from meshprogrammer import cli, crypto, storage
 
 
 def test_build_parser_defaults_working_dir() -> None:
@@ -189,3 +191,108 @@ def test_run_import_channels_reports_missing_channel_set(
 
     assert result == 1
     assert "No saved channel set named 'missing'" in capsys.readouterr().out
+
+
+def test_build_parser_backup_accepts_encrypt_flag() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["backup", "--port", "COM3", "--encrypt"])
+
+    assert args.encrypt is True
+
+
+def test_build_parser_backup_encrypt_defaults_false() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["backup", "--port", "COM3"])
+
+    assert args.encrypt is False
+
+
+def test_build_parser_export_channels_accepts_encrypt_flag() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["export-channels", "--port", "COM3", "--encrypt", "office"])
+
+    assert args.encrypt is True
+
+
+def test_prompt_new_password_retries_on_mismatch(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    responses = iter(["first", "second", "match", "match"])
+    monkeypatch.setattr(cli.getpass, "getpass", lambda *_a, **_k: next(responses))
+
+    result = cli._prompt_new_password()
+
+    assert result == "match"
+    assert "did not match" in capsys.readouterr().out
+
+
+def test_prompt_new_password_rejects_empty_password(monkeypatch: pytest.MonkeyPatch) -> None:
+    responses = iter(["", "ok", "ok"])
+    monkeypatch.setattr(cli.getpass, "getpass", lambda *_a, **_k: next(responses))
+
+    assert cli._prompt_new_password() == "ok"
+
+
+def test_decrypt_if_needed_passes_through_plain_payload() -> None:
+    assert cli._decrypt_if_needed({"channel_url": "x"}) == {"channel_url": "x"}
+
+
+def test_decrypt_if_needed_prompts_and_decrypts(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {"channel_url": "https://example"}
+    envelope = crypto.encrypt_payload(payload, "secret")
+    monkeypatch.setattr(cli.getpass, "getpass", lambda *_a, **_k: "secret")
+
+    assert cli._decrypt_if_needed(envelope) == payload
+
+
+def test_decrypt_if_needed_returns_none_on_wrong_password(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    envelope = crypto.encrypt_payload({"channel_url": "x"}, "secret")
+    monkeypatch.setattr(cli.getpass, "getpass", lambda *_a, **_k: "nope")
+
+    assert cli._decrypt_if_needed(envelope) is None
+    assert "Incorrect password" in capsys.readouterr().out
+
+
+def test_run_import_channels_returns_one_on_wrong_password(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    envelope = crypto.encrypt_payload({"channel_url": "https://example"}, "right")
+    storage.write_channels(tmp_path, "office", envelope)
+    monkeypatch.setattr(cli.getpass, "getpass", lambda *_a, **_k: "wrong")
+
+    result = cli.run_import_channels(tmp_path, "COM3", "office")
+
+    assert result == 1
+    assert "Incorrect password" in capsys.readouterr().out
+
+
+def test_apply_restore_decrypts_encrypted_backup_before_restoring(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = backup_module.build_backup_payload(
+        node_id="!a1b2c3d4",
+        long_name=None,
+        short_name=None,
+        channel_url=None,
+        local_config=localonly_pb2.LocalConfig(),
+        module_config=localonly_pb2.LocalModuleConfig(),
+    )
+    envelope = crypto.encrypt_payload(payload, "secret")
+    path = storage.write_backup(tmp_path, "!a1b2c3d4", envelope, datetime.now(timezone.utc))
+    monkeypatch.setattr(cli.getpass, "getpass", lambda *_a, **_k: "secret")
+    restored: dict[str, object] = {}
+    monkeypatch.setattr(
+        cli.device,
+        "restore_to_interface",
+        lambda _interface, backup: restored.setdefault("backup", backup),
+    )
+
+    result = cli._apply_restore(object(), path)  # interface unused by the stub above
+
+    assert result is True
+    assert restored["backup"].node_id == "!a1b2c3d4"

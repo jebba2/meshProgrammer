@@ -73,19 +73,19 @@ def channels_path(working_dir: Path, name: str) -> Path:
     return working_dir / "channels" / f"{name}.json"
 
 
-def write_channels(working_dir: Path, name: str, channel_url: str) -> Path:
-    """Save ``channel_url`` as a named, sharable channel set.
+def write_channels(working_dir: Path, name: str, payload: dict[str, Any]) -> Path:
+    """Save ``payload`` (e.g. ``{"channel_url": ...}``, plain or encrypted) as a named,
+    sharable channel set.
 
     Returns the path it was written to.
     """
     path = channels_path(working_dir, name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"channel_url": channel_url}, indent=2))
+    path.write_text(json.dumps(payload, indent=2))
     return path
 
 
-def read_channels(working_dir: Path, name: str) -> str:
-    """Return the channel URL previously saved as ``name``."""
+def read_channels(working_dir: Path, name: str) -> dict[str, Any]:
+    """Return the payload dict previously saved as ``name``."""
     path = channels_path(working_dir, name)
-    data = json.loads(path.read_text())
-    return data["channel_url"]
+    return json.loads(path.read_text())
