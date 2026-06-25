@@ -12,51 +12,57 @@ uv sync
 
 ## Commands
 
-### `scan`
+Each command below is available both as a `meshprogrammer <command>` subcommand and as a standalone `mesh-<command>` shortcut script — the two are equivalent.
+
+### `scan` / `mesh-scan`
 
 List serial ports with a Meshtastic device attached.
 
 ```
 uv run meshprogrammer scan
+uv run mesh-scan
 ```
 
-### `backup`
+### `backup` / `mesh-backup`
 
 Back up the config of the device connected on a given serial port. Writes a new timestamped backup under `working/<node-id>/`.
 
 ```
 uv run meshprogrammer backup --port COM5
+uv run mesh-backup --port COM5
 ```
 
-### `restore`
+### `restore` / `mesh-restore`
 
 Restore a backup onto the device connected on a given serial port.
 
 ```
 # Restore the connected device's own latest backup
-uv run meshprogrammer restore --port COM5
+uv run mesh-restore --port COM5
 
 # Restore a specific device's latest backup (e.g. onto a replacement device)
-uv run meshprogrammer restore --port COM5 --node-id "!a1b2c3d4"
+uv run mesh-restore --port COM5 --node-id "!a1b2c3d4"
 
 # Restore an exact backup file
-uv run meshprogrammer restore --port COM5 --file working/!a1b2c3d4/backup-20260624T153000Z.json
+uv run mesh-restore --port COM5 --file working/!a1b2c3d4/backup-20260624T153000Z.json
 ```
 
-### `list`
+### `list` / `mesh-list`
 
 List known devices and their backups.
 
 ```
 uv run meshprogrammer list
+uv run mesh-list
 ```
 
 ### `--working-dir`
 
-All commands accept `--working-dir` to use a folder other than `working/`:
+`backup`, `restore`, and `list` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
 
 ```
-uv run meshprogrammer --working-dir /path/to/backups list
+uv run meshprogrammer list --working-dir /path/to/backups
+uv run mesh-list --working-dir /path/to/backups
 ```
 
 ## Development

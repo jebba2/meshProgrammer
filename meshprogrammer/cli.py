@@ -11,28 +11,39 @@ from meshprogrammer import backup as backup_module
 from meshprogrammer import device, storage
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Build the meshprogrammer argument parser."""
-    parser = argparse.ArgumentParser(
-        prog="meshprogrammer",
-        description="Backup and restore Meshtastic device configs",
-    )
+def _add_working_dir_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--working-dir",
         type=Path,
         default=storage.DEFAULT_WORKING_DIR,
         help="Folder to store/read device config backups (default: %(default)s)",
     )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the meshprogrammer argument parser.
+
+    ``--working-dir`` is defined per-subcommand (rather than on the top-level
+    parser) so it works the same way whether typed before or after the
+    subcommand name -- the latter is required for the mesh-* script shortcuts,
+    which always prepend the subcommand themselves.
+    """
+    parser = argparse.ArgumentParser(
+        prog="meshprogrammer",
+        description="Backup and restore Meshtastic device configs",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("scan", help="List connected Meshtastic serial devices")
 
     backup_parser = subparsers.add_parser("backup", help="Back up a connected device's config")
+    _add_working_dir_arg(backup_parser)
     backup_parser.add_argument(
         "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
     )
 
     restore_parser = subparsers.add_parser("restore", help="Restore a backup onto a connected device")
+    _add_working_dir_arg(restore_parser)
     restore_parser.add_argument(
         "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
     )
@@ -46,7 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Restore the latest backup for this node id, instead of the connected device's own",
     )
 
-    subparsers.add_parser("list", help="List known devices and their backups")
+    list_parser = subparsers.add_parser("list", help="List known devices and their backups")
+    _add_working_dir_arg(list_parser)
 
     return parser
 
@@ -132,6 +144,32 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.error(f"Unknown command: {args.command}")
     return 1
+
+
+def _run_subcommand(subcommand: str, argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    return main([subcommand, *argv])
+
+
+def scan_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer scan``."""
+    return _run_subcommand("scan", argv)
+
+
+def backup_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer backup``."""
+    return _run_subcommand("backup", argv)
+
+
+def restore_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer restore``."""
+    return _run_subcommand("restore", argv)
+
+
+def list_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer list``."""
+    return _run_subcommand("list", argv)
 
 
 if __name__ == "__main__":
