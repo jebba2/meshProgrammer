@@ -123,3 +123,7 @@ You always find and fix the root cause of a problem, rather than adding a workar
 
 ## PYLANCE
 - Always make sure that all code created does not have any pylance errors
+
+## TESTPLAN
+- add a test plan document that walks with testing all the commands with checkboxes
+- Always keep this document current with commands and functionality
