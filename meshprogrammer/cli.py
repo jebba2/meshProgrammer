@@ -45,6 +45,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    subparsers.add_parser("help", help="List all commands")
+
     subparsers.add_parser("scan", help="List connected Meshtastic serial devices")
 
     backup_parser = subparsers.add_parser("backup", help="Back up a connected device's config")
@@ -100,6 +102,12 @@ def build_parser() -> argparse.ArgumentParser:
     import_channels_parser.add_argument("name", help="Name of the saved channel set to apply")
 
     return parser
+
+
+def run_help() -> int:
+    """Print the full list of commands and usage (same as --help)."""
+    build_parser().print_help()
+    return 0
 
 
 def run_scan() -> int:
@@ -304,6 +312,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.command == "help":
+        return run_help()
     if args.command == "scan":
         return run_scan()
     if args.command == "backup":
@@ -327,6 +337,11 @@ def _run_subcommand(subcommand: str, argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
     return main([subcommand, *argv])
+
+
+def help_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer help``."""
+    return _run_subcommand("help", argv)
 
 
 def scan_entry_point(argv: list[str] | None = None) -> int:

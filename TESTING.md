@@ -19,6 +19,12 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 source .venv/bin/activate
 ```
 
+## help / mesh-help
+
+- [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, export-channels, import-channels) with a one-line description
+- [ ] `uv run mesh-help` produces the same output
+- [ ] Output matches `uv run meshprogrammer --help`
+
 ## scan / mesh-scan
 
 - [ ] `uv run meshprogrammer scan` lists the connected device's port

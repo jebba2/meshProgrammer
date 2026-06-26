@@ -38,6 +38,15 @@ source .venv/bin/activate
 
 Each command below is available both as a `meshprogrammer <command>` subcommand and as a standalone `mesh-<command>` shortcut script — the two are equivalent.
 
+### `help` / `mesh-help`
+
+List all commands with a one-line description of each (same as `meshprogrammer --help`).
+
+```
+uv run meshprogrammer help
+uv run mesh-help
+```
+
 ### `scan` / `mesh-scan`
 
 List serial ports with a Meshtastic device attached.

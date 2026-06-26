@@ -514,3 +514,36 @@ def test_device_backups_entry_point_without_port_or_device_reports_error(
 
     assert result == 1
     assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
+def test_build_parser_accepts_help_command() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["help"])
+
+    assert args.command == "help"
+
+
+def test_run_help_lists_every_command(capsys: pytest.CaptureFixture[str]) -> None:
+    result = cli.run_help()
+    out = capsys.readouterr().out
+
+    assert result == 0
+    for command in [
+        "scan",
+        "backup",
+        "restore",
+        "list",
+        "device-backups",
+        "export-channels",
+        "import-channels",
+        "help",
+    ]:
+        assert command in out
+
+
+def test_help_entry_point_runs_without_error(capsys: pytest.CaptureFixture[str]) -> None:
+    result = cli.help_entry_point([])
+
+    assert result == 0
+    assert "scan" in capsys.readouterr().out
