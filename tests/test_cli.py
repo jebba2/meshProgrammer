@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -6,6 +7,11 @@ from meshtastic.protobuf import localonly_pb2
 
 from meshprogrammer import backup as backup_module
 from meshprogrammer import cli, crypto, storage
+
+
+@contextmanager
+def _fake_open_device(_port: str):
+    yield object()
 
 
 def test_build_parser_defaults_working_dir() -> None:
@@ -417,6 +423,94 @@ def test_run_import_channels_returns_one_without_opening_device_when_port_unreso
     )
 
     result = cli.run_import_channels(tmp_path, None, "office")
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
+def test_build_parser_device_backups_port_defaults_to_none() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["device-backups"])
+
+    assert args.command == "device-backups"
+    assert args.port is None
+
+
+def test_build_parser_device_backups_accepts_port_and_working_dir() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(
+        ["device-backups", "--port", "COM3", "--working-dir", "/tmp/foo"]
+    )
+
+    assert args.port == "COM3"
+    assert args.working_dir == Path("/tmp/foo")
+
+
+def test_run_device_backups_lists_backups_for_connected_device(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 1}, timestamp)
+    monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _interface: "!a1b2c3d4")
+
+    result = cli.run_device_backups(tmp_path, "COM3")
+    out = capsys.readouterr().out
+
+    assert result == 0
+    assert "!a1b2c3d4" in out
+    assert "backup-20260624T153000Z.json" in out
+
+
+def test_run_device_backups_with_no_backups_reports_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _interface: "!a1b2c3d4")
+
+    result = cli.run_device_backups(tmp_path, "COM3")
+
+    assert result == 0
+    assert "No backups found for !a1b2c3d4" in capsys.readouterr().out
+
+
+def test_run_device_backups_does_not_list_other_devices_backups(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    storage.write_backup(tmp_path, "!other00", {"v": 1}, timestamp)
+    monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _interface: "!a1b2c3d4")
+
+    result = cli.run_device_backups(tmp_path, "COM3")
+    out = capsys.readouterr().out
+
+    assert result == 0
+    assert "!other00" not in out
+
+
+def test_run_device_backups_returns_one_without_opening_device_when_port_unresolved(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+    monkeypatch.setattr(
+        cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
+    )
+
+    result = cli.run_device_backups(Path("working"), None)
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
+def test_device_backups_entry_point_without_port_or_device_reports_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+
+    result = cli.device_backups_entry_point([])
 
     assert result == 1
     assert "No Meshtastic devices detected" in capsys.readouterr().out

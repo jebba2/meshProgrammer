@@ -79,11 +79,21 @@ uv run mesh-restore --port COM5 --file working/!a1b2c3d4/backup-20260624T153000Z
 
 ### `list` / `mesh-list`
 
-List known devices and their backups.
+List all known devices (from the `working/` folder) and their backups -- doesn't need a device connected.
 
 ```
 uv run meshprogrammer list
 uv run mesh-list
+```
+
+### `device-backups` / `mesh-device-backups`
+
+List backups for one connected device: the one on `--port`, or auto-detected if exactly one device is connected. Unlike `list`, this talks to the device to find out its node id, so use it when you want "what backups exist for *this* device" rather than browsing everything in `working/`.
+
+```
+uv run meshprogrammer device-backups --port COM5
+uv run mesh-device-backups --port COM5
+uv run mesh-device-backups
 ```
 
 ### `export-channels` / `mesh-export-channels`
@@ -115,7 +125,7 @@ Encryption uses scrypt (RFC 7914 interactive parameters) to derive a key from th
 
 ### `--port`
 
-`backup`, `restore`, `export-channels`, and `import-channels` (and their `mesh-*` shortcuts) accept `--port` to pick which serial port to use. It's optional: if you omit it and exactly one Meshtastic device is connected, that device's port is used automatically. If none are connected, or more than one is, you'll get an error telling you to specify `--port` explicitly.
+`backup`, `restore`, `device-backups`, `export-channels`, and `import-channels` (and their `mesh-*` shortcuts) accept `--port` to pick which serial port to use. It's optional: if you omit it and exactly one Meshtastic device is connected, that device's port is used automatically. If none are connected, or more than one is, you'll get an error telling you to specify `--port` explicitly.
 
 ```
 uv run mesh-backup
@@ -127,7 +137,7 @@ uv run mesh-backup
 
 ### `--working-dir`
 
-`backup`, `restore`, and `list` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
+`backup`, `restore`, `list`, `device-backups`, `export-channels`, and `import-channels` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
 
 ```
 uv run meshprogrammer list --working-dir /path/to/backups

@@ -59,10 +59,17 @@ def read_backup(path: Path) -> dict[str, Any]:
 
 
 def list_device_ids(working_dir: Path) -> list[str]:
-    """Return all known device ids, sorted, or [] if the working dir doesn't exist."""
+    """Return all known device ids, sorted, or [] if the working dir doesn't exist.
+
+    Device ids are folder names starting with "!" (the Meshtastic node id
+    format), which excludes the "channels" subfolder used for shared
+    channel sets.
+    """
     if not working_dir.is_dir():
         return []
-    return sorted(p.name for p in working_dir.iterdir() if p.is_dir())
+    return sorted(
+        p.name for p in working_dir.iterdir() if p.is_dir() and p.name.startswith("!")
+    )
 
 
 def _timestamp_sort_key(path: Path) -> str:
