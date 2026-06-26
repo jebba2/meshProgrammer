@@ -24,7 +24,9 @@ Then install this project's dependencies:
 uv sync
 ```
 
-Every command below needs the `uv run` prefix shown (e.g. `uv run mesh-scan`) -- the `meshprogrammer`/`mesh-*` commands only exist inside this project's virtual environment, not on your shell's normal PATH. If you'd rather not type `uv run` every time, activate the venv once per session and drop the prefix:
+Every command below needs the `uv run` prefix shown (e.g. `uv run mesh-scan`) -- the `meshprogrammer`/`mesh-*` commands only exist inside this project's virtual environment, not on your shell's normal PATH. There are two ways to drop the prefix:
+
+**Per-session (lasts until you close the terminal):** activate the venv.
 
 ```
 # Windows (PowerShell)
@@ -33,6 +35,21 @@ Every command below needs the `uv run` prefix shown (e.g. `uv run mesh-scan`) --
 # macOS/Linux
 source .venv/bin/activate
 ```
+
+**Permanent, from any directory:** install as a uv tool in editable mode. This puts `meshprogrammer`/`mesh-*` on your normal PATH for good (no activation, no `cd`-ing into this repo first), while still picking up code changes immediately since `--editable` points at this source tree rather than copying it.
+
+```
+uv tool install --editable .
+```
+
+Things to know about this install:
+
+- If you add a new *dependency* to `pyproject.toml` (not just edit existing code), rerun `uv tool install --editable .` (or `uv tool upgrade meshprogrammer`) to pick it up. Editable mode only auto-reflects source code changes, not dependency changes.
+- It's a reference to this exact folder path. If you move or rename this repo, the installed commands break until you reinstall from the new location.
+- It's a separate, isolated environment from this repo's own `.venv` (managed by uv under its own tool directory, e.g. `%APPDATA%\uv\tools` on Windows) -- it won't conflict with or affect any other uv project's dependencies.
+- To remove it: `uv tool uninstall meshprogrammer`.
+
+With either approach, every `uv run mesh-backup ...` example below can be run as just `mesh-backup ...`.
 
 ## Commands
 
