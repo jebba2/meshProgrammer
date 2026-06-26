@@ -12,6 +12,8 @@ wheels/
 
 # CLAUDE
 .claude/
+CLAUDE.md
+
 
 # Device config backups (contain device private/admin keys)
 working/
