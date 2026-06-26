@@ -28,18 +28,19 @@ source .venv/bin/activate
 
 ## backup / mesh-backup
 
-- [ ] `uv run mesh-backup --port <PORT>` succeeds, printing the node id and backup path
-- [ ] With only one device connected, `uv run mesh-backup` (no `--port`) auto-detects it and succeeds
+`--port` is optional throughout: if omitted and exactly one Meshtastic device is connected, its port is used automatically.
+
+- [ ] `uv run mesh-backup [--port <PORT>]` succeeds, printing the node id and backup path
 - [ ] The backup file exists at `working/<node-id>/backup-<timestamp>.json`
 - [ ] The backup file contains `local_config`, `module_config`, owner name, and `channel_url`
 - [ ] Running it twice creates two distinct timestamped files (not an overwrite)
-- [ ] `uv run meshprogrammer backup --port <PORT>` produces the same result as `mesh-backup`
-- [ ] `uv run mesh-backup --port <PORT> --working-dir <DIR>` writes under `<DIR>/<node-id>/` instead of `working/`
+- [ ] `uv run meshprogrammer backup [--port <PORT>]` produces the same result as `mesh-backup`
+- [ ] `uv run mesh-backup [--port <PORT>] --working-dir <DIR>` writes under `<DIR>/<node-id>/` instead of `working/`
 - [ ] `uv run mesh-backup --port <bad-port>` fails with a clear error, not a crash
 
 ## backup --encrypt
 
-- [ ] `uv run mesh-backup --port <PORT> --encrypt` prompts for a password and a confirmation
+- [ ] `uv run mesh-backup [--port <PORT>] --encrypt` prompts for a password and a confirmation
 - [ ] A mismatched confirmation re-prompts with "Passwords did not match, try again."
 - [ ] An empty password is rejected and re-prompted
 - [ ] The resulting backup file has `"encrypted": true` and no readable plaintext config
@@ -47,14 +48,15 @@ source .venv/bin/activate
 
 ## restore / mesh-restore
 
-- [ ] `uv run mesh-restore --port <PORT>` (no flags) restores the connected device's own latest backup
-- [ ] With only one device connected, `uv run mesh-restore` (no `--port`) auto-detects it and succeeds
-- [ ] `uv run mesh-restore --port <PORT> --node-id <ID>` restores a specific device's latest backup
-- [ ] `uv run mesh-restore --port <PORT> --file <path>` restores an exact backup file
+`--port` is optional throughout: if omitted and exactly one Meshtastic device is connected, its port is used automatically.
+
+- [ ] `uv run mesh-restore [--port <PORT>]` (no other flags) restores the connected device's own latest backup
+- [ ] `uv run mesh-restore [--port <PORT>] --node-id <ID>` restores a specific device's latest backup
+- [ ] `uv run mesh-restore [--port <PORT>] --file <path>` restores an exact backup file
 - [ ] `--file` and `--node-id` together are rejected (mutually exclusive)
 - [ ] Restoring with no backups present for a node id prints "No backups found..." and exits non-zero
-- [ ] After restoring, a fresh `uv run mesh-backup --port <PORT>` shows the config matches what was restored
-- [ ] `uv run meshprogrammer restore --port <PORT>` produces the same result as `mesh-restore`
+- [ ] After restoring, a fresh `uv run mesh-backup [--port <PORT>]` shows the config matches what was restored
+- [ ] `uv run meshprogrammer restore [--port <PORT>]` produces the same result as `mesh-restore`
 
 ## restore (encrypted backups)
 
@@ -71,26 +73,28 @@ source .venv/bin/activate
 
 ## export-channels / mesh-export-channels
 
-- [ ] `uv run mesh-export-channels --port <PORT> <name>` succeeds, writes `working/channels/<name>.json`
-- [ ] With only one device connected, `uv run mesh-export-channels <name>` (no `--port`) auto-detects it and succeeds
+`--port` is optional throughout: if omitted and exactly one Meshtastic device is connected, its port is used automatically.
+
+- [ ] `uv run mesh-export-channels [--port <PORT>] <name>` succeeds, writes `working/channels/<name>.json`
 - [ ] Re-running with the same name overwrites the file
-- [ ] `uv run meshprogrammer export-channels --port <PORT> <name>` produces the same result
-- [ ] `uv run mesh-export-channels --port <PORT> --working-dir <DIR> <name>` writes under `<DIR>/channels/`
+- [ ] `uv run meshprogrammer export-channels [--port <PORT>] <name>` produces the same result
+- [ ] `uv run mesh-export-channels [--port <PORT>] --working-dir <DIR> <name>` writes under `<DIR>/channels/`
 
 ## export-channels --encrypt
 
-- [ ] `uv run mesh-export-channels --port <PORT> --encrypt <name>` prompts for password + confirmation
+- [ ] `uv run mesh-export-channels [--port <PORT>] --encrypt <name>` prompts for password + confirmation
 - [ ] The resulting file has `"encrypted": true` and no readable plaintext `channel_url`
 - [ ] The success message includes "(encrypted)"
 
 ## import-channels / mesh-import-channels
 
-- [ ] `uv run mesh-import-channels --port <PORT> <name>` applies the saved channel set
-- [ ] With only one device connected, `uv run mesh-import-channels <name>` (no `--port`) auto-detects it and succeeds
+`--port` is optional throughout: if omitted and exactly one Meshtastic device is connected, its port is used automatically.
+
+- [ ] `uv run mesh-import-channels [--port <PORT>] <name>` applies the saved channel set
 - [ ] After importing, exporting again from the same device shows matching channel settings (psk, name, uplink/downlink, position precision) -- LoRa modem fields (bandwidth/spreadFactor/codingRate) may now be explicit where they weren't before; that's expected firmware behavior, not a bug
 - [ ] Importing a name that doesn't exist prints "No saved channel set named '<name>' ..." and exits non-zero
 - [ ] (If you have a second device) export from device A, then import onto device B -- B's channels now match A's
-- [ ] `uv run meshprogrammer import-channels --port <PORT> <name>` produces the same result as `mesh-import-channels`
+- [ ] `uv run meshprogrammer import-channels [--port <PORT>] <name>` produces the same result as `mesh-import-channels`
 
 ## import-channels (encrypted)
 
