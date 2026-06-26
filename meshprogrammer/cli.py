@@ -22,6 +22,15 @@ def _add_working_dir_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_port_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--port",
+        default=None,
+        help="Serial port the device is connected on, e.g. COM3 "
+        "(auto-detected if exactly one Meshtastic device is connected)",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the meshprogrammer argument parser.
 
@@ -40,9 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     backup_parser = subparsers.add_parser("backup", help="Back up a connected device's config")
     _add_working_dir_arg(backup_parser)
-    backup_parser.add_argument(
-        "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
-    )
+    _add_port_arg(backup_parser)
     backup_parser.add_argument(
         "--encrypt",
         action="store_true",
@@ -51,9 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     restore_parser = subparsers.add_parser("restore", help="Restore a backup onto a connected device")
     _add_working_dir_arg(restore_parser)
-    restore_parser.add_argument(
-        "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
-    )
+    _add_port_arg(restore_parser)
     restore_target = restore_parser.add_mutually_exclusive_group()
     restore_target.add_argument(
         "--file", type=Path, default=None, help="Specific backup file to restore"
@@ -71,9 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
         "export-channels", help="Save a connected device's channels to a named, sharable file"
     )
     _add_working_dir_arg(export_channels_parser)
-    export_channels_parser.add_argument(
-        "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
-    )
+    _add_port_arg(export_channels_parser)
     export_channels_parser.add_argument(
         "--encrypt",
         action="store_true",
@@ -86,9 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Apply a saved channel set to a connected device, overwriting its current channels",
     )
     _add_working_dir_arg(import_channels_parser)
-    import_channels_parser.add_argument(
-        "--port", required=True, help="Serial port the device is connected on, e.g. COM3"
-    )
+    _add_port_arg(import_channels_parser)
     import_channels_parser.add_argument("name", help="Name of the saved channel set to apply")
 
     return parser
@@ -123,6 +124,25 @@ def _prompt_existing_password() -> str:
     return getpass.getpass("Password: ")
 
 
+def _resolve_port(port: str | None) -> str | None:
+    """Return ``port`` unchanged, or auto-detect it if not given explicitly.
+
+    Auto-detection only succeeds when exactly one Meshtastic device is
+    connected. Returns None (after printing an error) if there's none or
+    more than one and the caller didn't say which to use.
+    """
+    if port is not None:
+        return port
+    ports = device.scan_ports()
+    if len(ports) == 1:
+        return ports[0]
+    if not ports:
+        print("No Meshtastic devices detected. Specify --port.")
+        return None
+    print(f"Multiple devices detected ({', '.join(ports)}). Specify --port to choose one.")
+    return None
+
+
 def _decrypt_if_needed(data: dict[str, Any]) -> dict[str, Any] | None:
     """Return ``data`` as-is if it's a plain payload, or prompt and decrypt if encrypted.
 
@@ -138,8 +158,11 @@ def _decrypt_if_needed(data: dict[str, Any]) -> dict[str, Any] | None:
         return None
 
 
-def run_backup(working_dir: Path, port: str, encrypt: bool) -> int:
-    """Back up the config of the device connected on ``port``."""
+def run_backup(working_dir: Path, port: str | None, encrypt: bool) -> int:
+    """Back up the config of the device connected on ``port`` (auto-detected if not given)."""
+    port = _resolve_port(port)
+    if port is None:
+        return 1
     with device.open_device(port) as interface:
         payload = device.backup_from_interface(interface)
     node_id = payload["node_id"]
@@ -166,13 +189,17 @@ def _apply_restore(interface: SerialInterface, backup_path: Path) -> bool:
     return True
 
 
-def run_restore(working_dir: Path, port: str, file: Path | None, node_id: str | None) -> int:
-    """Restore a backup onto the device connected on ``port``.
+def run_restore(working_dir: Path, port: str | None, file: Path | None, node_id: str | None) -> int:
+    """Restore a backup onto the device connected on ``port`` (auto-detected if not given).
 
     If ``file`` is given, restore that exact backup. Otherwise restore the
     latest backup for ``node_id``, or for the connected device's own node id
     if ``node_id`` is also not given.
     """
+    port = _resolve_port(port)
+    if port is None:
+        return 1
+
     if file is not None:
         with device.open_device(port) as interface:
             if not _apply_restore(interface, file):
@@ -205,8 +232,14 @@ def run_list(working_dir: Path) -> int:
     return 0
 
 
-def run_export_channels(working_dir: Path, port: str, name: str, encrypt: bool) -> int:
-    """Save the connected device's channels to a named, sharable file."""
+def run_export_channels(working_dir: Path, port: str | None, name: str, encrypt: bool) -> int:
+    """Save the connected device's channels to a named, sharable file.
+
+    ``port`` is auto-detected if not given and exactly one device is connected.
+    """
+    port = _resolve_port(port)
+    if port is None:
+        return 1
     with device.open_device(port) as interface:
         channel_url = device.export_channel_url(interface)
     payload: dict[str, Any] = {"channel_url": channel_url}
@@ -217,8 +250,11 @@ def run_export_channels(working_dir: Path, port: str, name: str, encrypt: bool) 
     return 0
 
 
-def run_import_channels(working_dir: Path, port: str, name: str) -> int:
-    """Apply a saved channel set to the connected device, overwriting its current channels."""
+def run_import_channels(working_dir: Path, port: str | None, name: str) -> int:
+    """Apply a saved channel set to the connected device, overwriting its current channels.
+
+    ``port`` is auto-detected if not given and exactly one device is connected.
+    """
     try:
         data = storage.read_channels(working_dir, name)
     except FileNotFoundError:
@@ -227,6 +263,10 @@ def run_import_channels(working_dir: Path, port: str, name: str) -> int:
 
     data = _decrypt_if_needed(data)
     if data is None:
+        return 1
+
+    port = _resolve_port(port)
+    if port is None:
         return 1
 
     with device.open_device(port) as interface:

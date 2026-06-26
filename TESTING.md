@@ -29,6 +29,7 @@ source .venv/bin/activate
 ## backup / mesh-backup
 
 - [ ] `uv run mesh-backup --port <PORT>` succeeds, printing the node id and backup path
+- [ ] With only one device connected, `uv run mesh-backup` (no `--port`) auto-detects it and succeeds
 - [ ] The backup file exists at `working/<node-id>/backup-<timestamp>.json`
 - [ ] The backup file contains `local_config`, `module_config`, owner name, and `channel_url`
 - [ ] Running it twice creates two distinct timestamped files (not an overwrite)
@@ -47,6 +48,7 @@ source .venv/bin/activate
 ## restore / mesh-restore
 
 - [ ] `uv run mesh-restore --port <PORT>` (no flags) restores the connected device's own latest backup
+- [ ] With only one device connected, `uv run mesh-restore` (no `--port`) auto-detects it and succeeds
 - [ ] `uv run mesh-restore --port <PORT> --node-id <ID>` restores a specific device's latest backup
 - [ ] `uv run mesh-restore --port <PORT> --file <path>` restores an exact backup file
 - [ ] `--file` and `--node-id` together are rejected (mutually exclusive)
@@ -70,6 +72,7 @@ source .venv/bin/activate
 ## export-channels / mesh-export-channels
 
 - [ ] `uv run mesh-export-channels --port <PORT> <name>` succeeds, writes `working/channels/<name>.json`
+- [ ] With only one device connected, `uv run mesh-export-channels <name>` (no `--port`) auto-detects it and succeeds
 - [ ] Re-running with the same name overwrites the file
 - [ ] `uv run meshprogrammer export-channels --port <PORT> <name>` produces the same result
 - [ ] `uv run mesh-export-channels --port <PORT> --working-dir <DIR> <name>` writes under `<DIR>/channels/`
@@ -83,6 +86,7 @@ source .venv/bin/activate
 ## import-channels / mesh-import-channels
 
 - [ ] `uv run mesh-import-channels --port <PORT> <name>` applies the saved channel set
+- [ ] With only one device connected, `uv run mesh-import-channels <name>` (no `--port`) auto-detects it and succeeds
 - [ ] After importing, exporting again from the same device shows matching channel settings (psk, name, uplink/downlink, position precision) -- LoRa modem fields (bandwidth/spreadFactor/codingRate) may now be explicit where they weren't before; that's expected firmware behavior, not a bug
 - [ ] Importing a name that doesn't exist prints "No saved channel set named '<name>' ..." and exits non-zero
 - [ ] (If you have a second device) export from device A, then import onto device B -- B's channels now match A's
@@ -93,6 +97,13 @@ source .venv/bin/activate
 - [ ] Importing an encrypted channel set prompts for "Password: "
 - [ ] The correct password decrypts and applies successfully
 - [ ] A wrong password prints "Incorrect password." and exits non-zero, device untouched
+
+## --port auto-detection edge cases
+
+- [ ] With no device connected, `uv run mesh-backup` (no `--port`) prints "No Meshtastic devices detected. Specify --port." and exits non-zero
+- [ ] (If you have a second device) with two devices connected, `uv run mesh-backup` (no `--port`) prints "Multiple devices detected (<PORT1>, <PORT2>). Specify --port to choose one." and exits non-zero
+- [ ] In both cases above, no backup file is written and the device(s) are untouched
+- [ ] The same no-device/multiple-device behavior holds for `mesh-restore`, `mesh-export-channels`, and `mesh-import-channels`
 
 ## General
 
