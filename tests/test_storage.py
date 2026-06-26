@@ -141,3 +141,16 @@ def test_write_channels_then_read_channels_round_trips(tmp_path: Path) -> None:
 def test_read_channels_for_unknown_name_raises_file_not_found(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         storage.read_channels(tmp_path, "missing")
+
+
+def test_list_channel_names_returns_sorted_names(tmp_path: Path) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "x"})
+    storage.write_channels(tmp_path, "home", {"channel_url": "y"})
+
+    result = storage.list_channel_names(tmp_path)
+
+    assert result == ["home", "office"]
+
+
+def test_list_channel_names_on_missing_channels_dir_returns_empty(tmp_path: Path) -> None:
+    assert storage.list_channel_names(tmp_path) == []

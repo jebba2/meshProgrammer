@@ -119,3 +119,11 @@ def read_channels(working_dir: Path, name: str) -> dict[str, Any]:
     """Return the payload dict previously saved as ``name``."""
     path = channels_path(working_dir, name)
     return json.loads(path.read_text())
+
+
+def list_channel_names(working_dir: Path) -> list[str]:
+    """Return all known channel set names, sorted, or [] if there are none."""
+    folder = working_dir / "channels"
+    if not folder.is_dir():
+        return []
+    return sorted(p.stem for p in folder.glob("*.json"))

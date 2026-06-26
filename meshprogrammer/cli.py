@@ -87,6 +87,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_working_dir_arg(device_backups_parser)
     _add_port_arg(device_backups_parser)
 
+    list_channels_parser = subparsers.add_parser(
+        "list-channels", help="List known channel sets saved with export-channels"
+    )
+    _add_working_dir_arg(list_channels_parser)
+
     export_channels_parser = subparsers.add_parser(
         "export-channels", help="Save a connected device's channels to a named, sharable file"
     )
@@ -271,6 +276,18 @@ def run_device_backups(working_dir: Path, port: str | None) -> int:
     return 0
 
 
+def run_list_channels(working_dir: Path) -> int:
+    """Print known channel set names, marking which ones are encrypted."""
+    names = storage.list_channel_names(working_dir)
+    if not names:
+        print(f"No channel sets found in {working_dir / 'channels'}")
+        return 0
+    for name in names:
+        suffix = " (encrypted)" if crypto.is_encrypted(storage.read_channels(working_dir, name)) else ""
+        print(f"{name}{suffix}")
+    return 0
+
+
 def run_export_channels(working_dir: Path, port: str | None, name: str, encrypt: bool) -> int:
     """Save the connected device's channels to a named, sharable file.
 
@@ -330,6 +347,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_list(args.working_dir)
     if args.command == "device-backups":
         return run_device_backups(args.working_dir, args.port)
+    if args.command == "list-channels":
+        return run_list_channels(args.working_dir)
     if args.command == "export-channels":
         return run_export_channels(args.working_dir, args.port, args.name, args.encrypt)
     if args.command == "import-channels":
@@ -373,6 +392,11 @@ def list_entry_point(argv: list[str] | None = None) -> int:
 def device_backups_entry_point(argv: list[str] | None = None) -> int:
     """Console-script shortcut for ``meshprogrammer device-backups``."""
     return _run_subcommand("device-backups", argv)
+
+
+def list_channels_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer list-channels``."""
+    return _run_subcommand("list-channels", argv)
 
 
 def export_channels_entry_point(argv: list[str] | None = None) -> int:
