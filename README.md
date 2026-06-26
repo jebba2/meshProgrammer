@@ -2,7 +2,7 @@
 
 A CLI for backing up and restoring [Meshtastic](https://meshtastic.org/) device configs over USB serial.
 
-Backups are stored under a `working/` folder in the repo root, one subfolder per device named by the device's own node id (e.g. `!a1b2c3d4`), with one timestamped JSON file per backup. Shared channel sets (see `export-channels`/`import-channels` below) live under `working/channels/`, one named file each. `working/` is gitignored because backups and channel sets can contain device private/admin keys and channel encryption keys.
+Backups are stored under a `working/` folder in the repo root, one subfolder per device named by the device's own node id (e.g. `!a1b2c3d4`), with one timestamped JSON file per backup: `backup-<timestamp>.json`, or `encryptedbackup-<timestamp>.json` if it was saved with `--encrypt`. Shared channel sets (see `export-channels`/`import-channels` below) live under `working/channels/`, one named file each. `working/` is gitignored because backups and channel sets can contain device private/admin keys and channel encryption keys.
 
 ## Setup
 
