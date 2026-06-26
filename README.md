@@ -24,6 +24,16 @@ Then install this project's dependencies:
 uv sync
 ```
 
+Every command below needs the `uv run` prefix shown (e.g. `uv run mesh-scan`) -- the `meshprogrammer`/`mesh-*` commands only exist inside this project's virtual environment, not on your shell's normal PATH. If you'd rather not type `uv run` every time, activate the venv once per session and drop the prefix:
+
+```
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+
+# macOS/Linux
+source .venv/bin/activate
+```
+
 ## Commands
 
 Each command below is available both as a `meshprogrammer <command>` subcommand and as a standalone `mesh-<command>` shortcut script — the two are equivalent.
