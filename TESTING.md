@@ -24,6 +24,7 @@ source .venv/bin/activate
 - [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, export-channels, import-channels) with a one-line description
 - [ ] `uv run mesh-help` produces the same output
 - [ ] Output matches `uv run meshprogrammer --help`
+- [ ] Output mentions `--port` and `--encrypt` and which commands accept them
 
 ## scan / mesh-scan
 

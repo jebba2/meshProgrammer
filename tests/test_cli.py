@@ -547,3 +547,11 @@ def test_help_entry_point_runs_without_error(capsys: pytest.CaptureFixture[str])
 
     assert result == 0
     assert "scan" in capsys.readouterr().out
+
+
+def test_run_help_mentions_port_and_encrypt_options(capsys: pytest.CaptureFixture[str]) -> None:
+    cli.run_help()
+    out = capsys.readouterr().out
+
+    assert "--port" in out
+    assert "--encrypt" in out
