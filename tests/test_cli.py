@@ -555,3 +555,56 @@ def test_run_help_mentions_port_and_encrypt_options(capsys: pytest.CaptureFixtur
 
     assert "--port" in out
     assert "--encrypt" in out
+
+
+def test_build_parser_list_channels_accepts_working_dir() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["list-channels", "--working-dir", "/tmp/foo"])
+
+    assert args.command == "list-channels"
+    assert args.working_dir == Path("/tmp/foo")
+
+
+def test_run_list_channels_with_none_reports_empty(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = cli.run_list_channels(tmp_path)
+
+    assert result == 0
+    assert "No channel sets found" in capsys.readouterr().out
+
+
+def test_run_list_channels_lists_plain_names(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "https://example"})
+
+    result = cli.run_list_channels(tmp_path)
+    out = capsys.readouterr().out
+
+    assert result == 0
+    assert "office" in out
+    assert "(encrypted)" not in out
+
+
+def test_run_list_channels_marks_encrypted_sets(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    envelope = crypto.encrypt_payload({"channel_url": "https://example"}, "secret")
+    storage.write_channels(tmp_path, "office", envelope)
+
+    result = cli.run_list_channels(tmp_path)
+    out = capsys.readouterr().out
+
+    assert result == 0
+    assert "office (encrypted)" in out
+
+
+def test_list_channels_entry_point_accepts_working_dir(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = cli.list_channels_entry_point(["--working-dir", str(tmp_path)])
+
+    assert result == 0
+    assert "No channel sets found" in capsys.readouterr().out

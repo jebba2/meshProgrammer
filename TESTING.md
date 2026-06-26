@@ -13,7 +13,7 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 
 ## help / mesh-help
 
-- [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, export-channels, import-channels) with a one-line description
+- [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, list-channels, export-channels, import-channels) with a one-line description
 - [ ] `uv run mesh-help` produces the same output
 - [ ] Output matches `uv run meshprogrammer --help`
 - [ ] Output mentions `--port` and `--encrypt` and which commands accept them
@@ -82,6 +82,15 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 - [ ] `uv run mesh-device-backups [--port <PORT>] --working-dir <DIR>` lists backups from that folder instead of `working/`
 - [ ] With no device connected, prints "No Meshtastic devices detected. Specify --port." and exits non-zero
 - [ ] (If you have a second device) with two devices connected and no `--port`, prints "Multiple devices detected (...). Specify --port to choose one." and exits non-zero
+
+## list-channels / mesh-list-channels
+
+- [ ] `uv run mesh-list-channels` with no saved channel sets prints "No channel sets found in working/channels"
+- [ ] After `export-channels`, `uv run mesh-list-channels` lists the saved name
+- [ ] An encrypted channel set is shown as `<name> (encrypted)`; a plain one has no suffix
+- [ ] `uv run meshprogrammer list-channels` produces the same output as `mesh-list-channels`
+- [ ] `uv run mesh-list-channels --working-dir <DIR>` lists channel sets from that folder instead of `working/`
+- [ ] Doesn't require a device connected
 
 ## export-channels / mesh-export-channels
 

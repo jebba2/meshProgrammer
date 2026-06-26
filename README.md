@@ -122,6 +122,15 @@ uv run mesh-device-backups --port COM5
 uv run mesh-device-backups
 ```
 
+### `list-channels` / `mesh-list-channels`
+
+List known channel sets saved with `export-channels`, marking which ones are encrypted. Doesn't need a device connected -- it just browses `working/channels/`.
+
+```
+uv run meshprogrammer list-channels
+uv run mesh-list-channels
+```
+
 ### `export-channels` / `mesh-export-channels`
 
 Save a connected device's channels (and the LoRa modem config they depend on) to a named, sharable file under `working/channels/<name>.json`. `--port` can be omitted if exactly one device is connected.
@@ -163,7 +172,7 @@ uv run mesh-backup
 
 ### `--working-dir`
 
-`backup`, `restore`, `list`, `device-backups`, `export-channels`, and `import-channels` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
+`backup`, `restore`, `list`, `device-backups`, `list-channels`, `export-channels`, and `import-channels` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
 
 ```
 uv run meshprogrammer list --working-dir /path/to/backups
