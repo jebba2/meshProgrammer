@@ -131,6 +131,6 @@ source .venv/bin/activate
 
 ## General
 
-- [ ] `meshprogrammer --help` and each `meshprogrammer <command> --help` show accurate, current usage
+- [ ] `uv run meshprogrammer --help` and each `meshprogrammer <command> --help` show accurate, current usage
 - [ ] `uv run pytest` passes
 - [ ] `uv run pyright meshprogrammer main.py` reports 0 errors
