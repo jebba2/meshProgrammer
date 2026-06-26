@@ -58,6 +58,15 @@ def test_list_device_ids_returns_subdirectories_sorted(tmp_path: Path) -> None:
     assert result == ["!aaaaaaaa", "!bbbbbbbb"]
 
 
+def test_list_device_ids_excludes_the_channels_folder(tmp_path: Path) -> None:
+    (tmp_path / "!aaaaaaaa").mkdir()
+    (tmp_path / "channels").mkdir()
+
+    result = storage.list_device_ids(tmp_path)
+
+    assert result == ["!aaaaaaaa"]
+
+
 def test_list_device_ids_on_missing_working_dir_returns_empty(tmp_path: Path) -> None:
     missing = tmp_path / "does_not_exist"
 

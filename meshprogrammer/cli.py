@@ -72,6 +72,13 @@ def build_parser() -> argparse.ArgumentParser:
     list_parser = subparsers.add_parser("list", help="List known devices and their backups")
     _add_working_dir_arg(list_parser)
 
+    device_backups_parser = subparsers.add_parser(
+        "device-backups",
+        help="List backups for the connected device (auto-detected if only one)",
+    )
+    _add_working_dir_arg(device_backups_parser)
+    _add_port_arg(device_backups_parser)
+
     export_channels_parser = subparsers.add_parser(
         "export-channels", help="Save a connected device's channels to a named, sharable file"
     )
@@ -217,6 +224,13 @@ def run_restore(working_dir: Path, port: str | None, file: Path | None, node_id:
     return 0
 
 
+def _print_backup_list(node_id: str, backups: list[Path]) -> None:
+    suffix = "" if len(backups) == 1 else "s"
+    print(f"{node_id} ({len(backups)} backup{suffix})")
+    for backup_file in backups:
+        print(f"  {backup_file.name}")
+
+
 def run_list(working_dir: Path) -> int:
     """Print known devices and their backups."""
     device_ids = storage.list_device_ids(working_dir)
@@ -224,11 +238,22 @@ def run_list(working_dir: Path) -> int:
         print(f"No backups found in {working_dir}")
         return 0
     for node_id in device_ids:
-        backups = storage.list_backups(working_dir, node_id)
-        suffix = "" if len(backups) == 1 else "s"
-        print(f"{node_id} ({len(backups)} backup{suffix})")
-        for backup_file in backups:
-            print(f"  {backup_file.name}")
+        _print_backup_list(node_id, storage.list_backups(working_dir, node_id))
+    return 0
+
+
+def run_device_backups(working_dir: Path, port: str | None) -> int:
+    """Print backups for the connected device (auto-detected if not given)."""
+    port = _resolve_port(port)
+    if port is None:
+        return 1
+    with device.open_device(port) as interface:
+        node_id = device.get_node_id(interface)
+    backups = storage.list_backups(working_dir, node_id)
+    if not backups:
+        print(f"No backups found for {node_id} in {working_dir}")
+        return 0
+    _print_backup_list(node_id, backups)
     return 0
 
 
@@ -287,6 +312,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_restore(args.working_dir, args.port, args.file, args.node_id)
     if args.command == "list":
         return run_list(args.working_dir)
+    if args.command == "device-backups":
+        return run_device_backups(args.working_dir, args.port)
     if args.command == "export-channels":
         return run_export_channels(args.working_dir, args.port, args.name, args.encrypt)
     if args.command == "import-channels":
@@ -320,6 +347,11 @@ def restore_entry_point(argv: list[str] | None = None) -> int:
 def list_entry_point(argv: list[str] | None = None) -> int:
     """Console-script shortcut for ``meshprogrammer list``."""
     return _run_subcommand("list", argv)
+
+
+def device_backups_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer device-backups``."""
+    return _run_subcommand("device-backups", argv)
 
 
 def export_channels_entry_point(argv: list[str] | None = None) -> int:

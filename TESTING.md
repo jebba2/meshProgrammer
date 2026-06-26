@@ -73,6 +73,17 @@ source .venv/bin/activate
 - [ ] `uv run meshprogrammer list` produces the same output as `mesh-list`
 - [ ] `uv run mesh-list --working-dir <DIR>` lists backups from that folder instead of `working/`
 
+## device-backups / mesh-device-backups
+
+`--port` is optional throughout: if omitted and exactly one Meshtastic device is connected, its port is used automatically.
+
+- [ ] `uv run mesh-device-backups [--port <PORT>]` lists only the connected device's own backups, not other devices' from `working/`
+- [ ] With no backups for the connected device, prints "No backups found for <node-id> in working"
+- [ ] `uv run meshprogrammer device-backups [--port <PORT>]` produces the same result as `mesh-device-backups`
+- [ ] `uv run mesh-device-backups [--port <PORT>] --working-dir <DIR>` lists backups from that folder instead of `working/`
+- [ ] With no device connected, prints "No Meshtastic devices detected. Specify --port." and exits non-zero
+- [ ] (If you have a second device) with two devices connected and no `--port`, prints "Multiple devices detected (...). Specify --port to choose one." and exits non-zero
+
 ## export-channels / mesh-export-channels
 
 `--port` is optional throughout: if omitted and exactly one Meshtastic device is connected, its port is used automatically.
@@ -109,7 +120,7 @@ source .venv/bin/activate
 - [ ] With no device connected, `uv run mesh-backup` (no `--port`) prints "No Meshtastic devices detected. Specify --port." and exits non-zero
 - [ ] (If you have a second device) with two devices connected, `uv run mesh-backup` (no `--port`) prints "Multiple devices detected (<PORT1>, <PORT2>). Specify --port to choose one." and exits non-zero
 - [ ] In both cases above, no backup file is written and the device(s) are untouched
-- [ ] The same no-device/multiple-device behavior holds for `mesh-restore`, `mesh-export-channels`, and `mesh-import-channels`
+- [ ] The same no-device/multiple-device behavior holds for `mesh-restore`, `mesh-device-backups`, `mesh-export-channels`, and `mesh-import-channels`
 
 ## General
 
