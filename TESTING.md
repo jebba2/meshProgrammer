@@ -9,6 +9,16 @@
 - [ ] `uv sync` has been run
 - [ ] Noted the device's serial port (e.g. `COM5`) from `scan` below
 
+All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv run meshprogrammer scan`) -- the `meshprogrammer`/`mesh-*` commands only exist inside this project's virtual environment, so a bare `scan` or `backup --port COM5` typed directly in your shell will fail with a "not recognized" error. If you'd rather not type `uv run` every time, activate the venv first and drop the prefix for the rest of the session:
+
+```
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+
+# macOS/Linux
+source .venv/bin/activate
+```
+
 ## scan / mesh-scan
 
 - [ ] `uv run meshprogrammer scan` lists the connected device's port
