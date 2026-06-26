@@ -43,8 +43,10 @@ source .venv/bin/activate
 - [ ] `uv run mesh-backup [--port <PORT>] --encrypt` prompts for a password and a confirmation
 - [ ] A mismatched confirmation re-prompts with "Passwords did not match, try again."
 - [ ] An empty password is rejected and re-prompted
+- [ ] The resulting file is named `encryptedbackup-<timestamp>.json`, not `backup-<timestamp>.json`
 - [ ] The resulting backup file has `"encrypted": true` and no readable plaintext config
 - [ ] The success message includes "(encrypted)"
+- [ ] With both encrypted and plain backups present for a device, `uv run mesh-list` and `restore`'s "latest backup" pick the actual newest one regardless of which prefix it has
 
 ## restore / mesh-restore
 

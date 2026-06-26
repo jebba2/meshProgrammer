@@ -20,6 +20,14 @@ def test_backup_path_is_timestamped_json_under_device_dir(tmp_path: Path) -> Non
     assert result == tmp_path / "!a1b2c3d4" / "backup-20260624T153000Z.json"
 
 
+def test_backup_path_for_encrypted_payload_uses_encryptedbackup_prefix(tmp_path: Path) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+
+    result = storage.backup_path(tmp_path, "!a1b2c3d4", timestamp, encrypted=True)
+
+    assert result == tmp_path / "!a1b2c3d4" / "encryptedbackup-20260624T153000Z.json"
+
+
 def test_write_backup_creates_device_dir_and_file(tmp_path: Path) -> None:
     timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
     payload = {"owner": "Test Node"}
@@ -28,6 +36,16 @@ def test_write_backup_creates_device_dir_and_file(tmp_path: Path) -> None:
 
     assert written.exists()
     assert storage.read_backup(written) == payload
+
+
+def test_write_backup_with_encrypted_payload_uses_encryptedbackup_prefix(tmp_path: Path) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    envelope = {"encrypted": True, "salt": "abc", "ciphertext": "def"}
+
+    written = storage.write_backup(tmp_path, "!a1b2c3d4", envelope, timestamp)
+
+    assert written.name == "encryptedbackup-20260624T153000Z.json"
+    assert storage.read_backup(written) == envelope
 
 
 def test_list_device_ids_returns_subdirectories_sorted(tmp_path: Path) -> None:
@@ -57,6 +75,25 @@ def test_list_backups_sorted_newest_first(tmp_path: Path) -> None:
     assert [p.name for p in result] == [
         "backup-20260624T120000Z.json",
         "backup-20260624T100000Z.json",
+    ]
+
+
+def test_list_backups_sorts_newest_first_across_encrypted_and_plain(tmp_path: Path) -> None:
+    earliest = datetime(2026, 6, 24, 9, 0, 0, tzinfo=timezone.utc)
+    middle = datetime(2026, 6, 24, 10, 0, 0, tzinfo=timezone.utc)
+    latest = datetime(2026, 6, 24, 11, 0, 0, tzinfo=timezone.utc)
+    storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 1}, earliest)
+    storage.write_backup(
+        tmp_path, "!a1b2c3d4", {"encrypted": True, "salt": "x", "ciphertext": "y"}, middle
+    )
+    storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 3}, latest)
+
+    result = storage.list_backups(tmp_path, "!a1b2c3d4")
+
+    assert [p.name for p in result] == [
+        "backup-20260624T110000Z.json",
+        "encryptedbackup-20260624T100000Z.json",
+        "backup-20260624T090000Z.json",
     ]
 
 

@@ -9,13 +9,17 @@ file per saved set.
 """
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from meshprogrammer.crypto import is_encrypted
+
 DEFAULT_WORKING_DIR = Path("working")
 
 _TIMESTAMP_FORMAT = "%Y%m%dT%H%M%SZ"
+_TIMESTAMP_RE = re.compile(r"\d{8}T\d{6}Z")
 
 
 def device_dir(working_dir: Path, node_id: str) -> Path:
@@ -23,9 +27,16 @@ def device_dir(working_dir: Path, node_id: str) -> Path:
     return working_dir / node_id
 
 
-def backup_path(working_dir: Path, node_id: str, timestamp: datetime) -> Path:
-    """Return the path a backup taken at ``timestamp`` would be written to."""
-    file_name = f"backup-{timestamp.strftime(_TIMESTAMP_FORMAT)}.json"
+def backup_path(
+    working_dir: Path, node_id: str, timestamp: datetime, encrypted: bool = False
+) -> Path:
+    """Return the path a backup taken at ``timestamp`` would be written to.
+
+    Encrypted backups get an ``encryptedbackup-`` prefix instead of
+    ``backup-`` so they're identifiable by filename alone.
+    """
+    prefix = "encryptedbackup" if encrypted else "backup"
+    file_name = f"{prefix}-{timestamp.strftime(_TIMESTAMP_FORMAT)}.json"
     return device_dir(working_dir, node_id) / file_name
 
 
@@ -36,7 +47,7 @@ def write_backup(
 
     Returns the path the backup was written to.
     """
-    path = backup_path(working_dir, node_id, timestamp)
+    path = backup_path(working_dir, node_id, timestamp, encrypted=is_encrypted(payload))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2))
     return path
@@ -54,12 +65,24 @@ def list_device_ids(working_dir: Path) -> list[str]:
     return sorted(p.name for p in working_dir.iterdir() if p.is_dir())
 
 
+def _timestamp_sort_key(path: Path) -> str:
+    """Sort key based on the embedded timestamp, not the raw filename.
+
+    Plain ("backup-...") and encrypted ("encryptedbackup-...") backups have
+    different prefixes, so sorting by filename string would group all
+    "backup-" files before all "encryptedbackup-" files regardless of which
+    is actually newer. Sorting by the embedded timestamp avoids that.
+    """
+    match = _TIMESTAMP_RE.search(path.name)
+    return match.group() if match else path.name
+
+
 def list_backups(working_dir: Path, node_id: str) -> list[Path]:
-    """Return all backups for ``node_id``, newest first."""
+    """Return all backups (plain and encrypted) for ``node_id``, newest first."""
     folder = device_dir(working_dir, node_id)
     if not folder.is_dir():
         return []
-    return sorted(folder.glob("backup-*.json"), reverse=True)
+    return sorted(folder.glob("*backup-*.json"), key=_timestamp_sort_key, reverse=True)
 
 
 def latest_backup(working_dir: Path, node_id: str) -> Path | None:
