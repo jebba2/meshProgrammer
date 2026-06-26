@@ -42,6 +42,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="meshprogrammer",
         description="Backup and restore Meshtastic device configs",
+        epilog=(
+            "backup, restore, device-backups, export-channels, and import-channels accept "
+            "--port (auto-detected if exactly one device is connected). backup and "
+            "export-channels also accept --encrypt to password-protect the saved file. "
+            "Run 'meshprogrammer <command> --help' for a command's full options."
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
