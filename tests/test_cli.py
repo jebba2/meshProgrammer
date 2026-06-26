@@ -48,11 +48,12 @@ def test_build_parser_restore_accepts_working_dir() -> None:
     assert args.working_dir == Path("/tmp/foo")
 
 
-def test_build_parser_backup_requires_port() -> None:
+def test_build_parser_backup_port_defaults_to_none() -> None:
     parser = cli.build_parser()
 
-    with pytest.raises(SystemExit):
-        parser.parse_args(["backup"])
+    args = parser.parse_args(["backup"])
+
+    assert args.port is None
 
 
 def test_build_parser_backup_parses_port() -> None:
@@ -87,14 +88,26 @@ def test_scan_entry_point_rejects_working_dir() -> None:
         cli.scan_entry_point(["--working-dir", "/tmp/foo"])
 
 
-def test_backup_entry_point_requires_port() -> None:
-    with pytest.raises(SystemExit):
-        cli.backup_entry_point([])
+def test_backup_entry_point_without_port_or_device_reports_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+
+    result = cli.backup_entry_point([])
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
 
 
-def test_restore_entry_point_requires_port() -> None:
-    with pytest.raises(SystemExit):
-        cli.restore_entry_point([])
+def test_restore_entry_point_without_port_or_device_reports_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+
+    result = cli.restore_entry_point([])
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
 
 
 def test_list_entry_point_rejects_unknown_args() -> None:
@@ -130,11 +143,12 @@ def test_run_list_prints_devices_and_backup_counts(
     assert "backup-20260624T153000Z.json" in out
 
 
-def test_build_parser_export_channels_requires_port() -> None:
+def test_build_parser_export_channels_port_defaults_to_none() -> None:
     parser = cli.build_parser()
 
-    with pytest.raises(SystemExit):
-        parser.parse_args(["export-channels", "office"])
+    args = parser.parse_args(["export-channels", "office"])
+
+    assert args.port is None
 
 
 def test_build_parser_export_channels_parses_port_and_name() -> None:
@@ -147,11 +161,12 @@ def test_build_parser_export_channels_parses_port_and_name() -> None:
     assert args.name == "office"
 
 
-def test_build_parser_import_channels_requires_port() -> None:
+def test_build_parser_import_channels_port_defaults_to_none() -> None:
     parser = cli.build_parser()
 
-    with pytest.raises(SystemExit):
-        parser.parse_args(["import-channels", "office"])
+    args = parser.parse_args(["import-channels", "office"])
+
+    assert args.port is None
 
 
 def test_build_parser_import_channels_parses_port_and_name() -> None:
@@ -174,14 +189,27 @@ def test_build_parser_export_channels_accepts_working_dir() -> None:
     assert args.working_dir == Path("/tmp/foo")
 
 
-def test_export_channels_entry_point_requires_port() -> None:
-    with pytest.raises(SystemExit):
-        cli.export_channels_entry_point(["office"])
+def test_export_channels_entry_point_without_port_or_device_reports_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+
+    result = cli.export_channels_entry_point(["office"])
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
 
 
-def test_import_channels_entry_point_requires_port() -> None:
-    with pytest.raises(SystemExit):
-        cli.import_channels_entry_point(["office"])
+def test_import_channels_entry_point_without_port_or_device_reports_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "https://example"})
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+
+    result = cli.import_channels_entry_point(["--working-dir", str(tmp_path), "office"])
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
 
 
 def test_run_import_channels_reports_missing_channel_set(
@@ -296,3 +324,99 @@ def test_apply_restore_decrypts_encrypted_backup_before_restoring(
 
     assert result is True
     assert restored["backup"].node_id == "!a1b2c3d4"
+
+
+def test_resolve_port_returns_explicit_port_without_scanning(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fail_if_called() -> list[str]:
+        raise AssertionError("should not scan when --port was given explicitly")
+
+    monkeypatch.setattr(cli.device, "scan_ports", _fail_if_called)
+
+    assert cli._resolve_port("COM3") == "COM3"
+
+
+def test_resolve_port_auto_detects_single_device(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: ["COM5"])
+
+    assert cli._resolve_port(None) == "COM5"
+
+
+def test_resolve_port_returns_none_when_no_devices(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+
+    result = cli._resolve_port(None)
+
+    assert result is None
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
+def test_resolve_port_returns_none_when_multiple_devices(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: ["COM3", "COM5"])
+
+    result = cli._resolve_port(None)
+    out = capsys.readouterr().out
+
+    assert result is None
+    assert "COM3" in out
+    assert "COM5" in out
+
+
+def test_run_backup_returns_one_without_opening_device_when_port_unresolved(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+    monkeypatch.setattr(
+        cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
+    )
+
+    result = cli.run_backup(Path("working"), None, False)
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
+def test_run_restore_returns_one_without_opening_device_when_port_unresolved(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+    monkeypatch.setattr(
+        cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
+    )
+
+    result = cli.run_restore(Path("working"), None, None, None)
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
+def test_run_export_channels_returns_one_without_opening_device_when_port_unresolved(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+    monkeypatch.setattr(
+        cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
+    )
+
+    result = cli.run_export_channels(Path("working"), None, "office", False)
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
+def test_run_import_channels_returns_one_without_opening_device_when_port_unresolved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "https://example"})
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+    monkeypatch.setattr(
+        cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
+    )
+
+    result = cli.run_import_channels(tmp_path, None, "office")
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
