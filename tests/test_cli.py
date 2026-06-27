@@ -10,7 +10,7 @@ from meshprogrammer import cli, crypto, storage
 
 
 @contextmanager
-def _fake_open_device(_port: str):
+def _fake_open_device(_port: str | None = None, _ble: str | None = None):
     yield object()
 
 
@@ -87,6 +87,66 @@ def test_build_parser_restore_defaults_file_and_node_id_to_none() -> None:
 
     assert args.file is None
     assert args.node_id is None
+
+
+_CONNECTION_COMMANDS = [
+    pytest.param(["backup"], id="backup"),
+    pytest.param(["restore"], id="restore"),
+    pytest.param(["device-backups"], id="device-backups"),
+    pytest.param(["export-channels", "office"], id="export-channels"),
+    pytest.param(["import-channels", "office"], id="import-channels"),
+]
+
+
+@pytest.mark.parametrize("command_args", _CONNECTION_COMMANDS)
+def test_build_parser_ble_defaults_to_none(command_args: list[str]) -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(command_args)
+
+    assert args.ble is None
+
+
+@pytest.mark.parametrize("command_args", _CONNECTION_COMMANDS)
+def test_build_parser_ble_flag_without_value_defaults_to_any(command_args: list[str]) -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args([*command_args, "--ble"])
+
+    assert args.ble == "any"
+
+
+@pytest.mark.parametrize("command_args", _CONNECTION_COMMANDS)
+def test_build_parser_ble_flag_accepts_device_name(command_args: list[str]) -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args([*command_args, "--ble", "Jeba 325c"])
+
+    assert args.ble == "Jeba 325c"
+
+
+@pytest.mark.parametrize("command_args", _CONNECTION_COMMANDS)
+def test_build_parser_port_and_ble_are_mutually_exclusive(command_args: list[str]) -> None:
+    parser = cli.build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args([*command_args, "--port", "COM3", "--ble"])
+
+
+def test_build_parser_scan_accepts_ble_flag() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["scan", "--ble"])
+
+    assert args.ble is True
+
+
+def test_build_parser_scan_ble_defaults_false() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["scan"])
+
+    assert args.ble is False
 
 
 def test_scan_entry_point_rejects_working_dir() -> None:
@@ -221,7 +281,7 @@ def test_import_channels_entry_point_without_port_or_device_reports_error(
 def test_run_import_channels_reports_missing_channel_set(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    result = cli.run_import_channels(tmp_path, "COM3", "missing")
+    result = cli.run_import_channels(tmp_path, "COM3", None, "missing")
 
     assert result == 1
     assert "No saved channel set named 'missing'" in capsys.readouterr().out
@@ -299,7 +359,7 @@ def test_run_import_channels_returns_one_on_wrong_password(
     storage.write_channels(tmp_path, "office", envelope)
     monkeypatch.setattr(cli.getpass, "getpass", lambda *_a, **_k: "wrong")
 
-    result = cli.run_import_channels(tmp_path, "COM3", "office")
+    result = cli.run_import_channels(tmp_path, "COM3", None, "office")
 
     assert result == 1
     assert "Incorrect password" in capsys.readouterr().out
@@ -379,7 +439,7 @@ def test_run_backup_returns_one_without_opening_device_when_port_unresolved(
         cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
     )
 
-    result = cli.run_backup(Path("working"), None, False)
+    result = cli.run_backup(Path("working"), None, None, False)
 
     assert result == 1
     assert "No Meshtastic devices detected" in capsys.readouterr().out
@@ -393,7 +453,7 @@ def test_run_restore_returns_one_without_opening_device_when_port_unresolved(
         cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
     )
 
-    result = cli.run_restore(Path("working"), None, None, None)
+    result = cli.run_restore(Path("working"), None, None, None, None)
 
     assert result == 1
     assert "No Meshtastic devices detected" in capsys.readouterr().out
@@ -407,7 +467,7 @@ def test_run_export_channels_returns_one_without_opening_device_when_port_unreso
         cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
     )
 
-    result = cli.run_export_channels(Path("working"), None, "office", False)
+    result = cli.run_export_channels(Path("working"), None, None, "office", False)
 
     assert result == 1
     assert "No Meshtastic devices detected" in capsys.readouterr().out
@@ -422,7 +482,7 @@ def test_run_import_channels_returns_one_without_opening_device_when_port_unreso
         cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
     )
 
-    result = cli.run_import_channels(tmp_path, None, "office")
+    result = cli.run_import_channels(tmp_path, None, None, "office")
 
     assert result == 1
     assert "No Meshtastic devices detected" in capsys.readouterr().out
@@ -456,7 +516,7 @@ def test_run_device_backups_lists_backups_for_connected_device(
     monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
     monkeypatch.setattr(cli.device, "get_node_id", lambda _interface: "!a1b2c3d4")
 
-    result = cli.run_device_backups(tmp_path, "COM3")
+    result = cli.run_device_backups(tmp_path, "COM3", None)
     out = capsys.readouterr().out
 
     assert result == 0
@@ -470,7 +530,7 @@ def test_run_device_backups_with_no_backups_reports_none(
     monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
     monkeypatch.setattr(cli.device, "get_node_id", lambda _interface: "!a1b2c3d4")
 
-    result = cli.run_device_backups(tmp_path, "COM3")
+    result = cli.run_device_backups(tmp_path, "COM3", None)
 
     assert result == 0
     assert "No backups found for !a1b2c3d4" in capsys.readouterr().out
@@ -484,7 +544,7 @@ def test_run_device_backups_does_not_list_other_devices_backups(
     monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
     monkeypatch.setattr(cli.device, "get_node_id", lambda _interface: "!a1b2c3d4")
 
-    result = cli.run_device_backups(tmp_path, "COM3")
+    result = cli.run_device_backups(tmp_path, "COM3", None)
     out = capsys.readouterr().out
 
     assert result == 0
@@ -499,7 +559,7 @@ def test_run_device_backups_returns_one_without_opening_device_when_port_unresol
         cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
     )
 
-    result = cli.run_device_backups(Path("working"), None)
+    result = cli.run_device_backups(Path("working"), None, None)
 
     assert result == 1
     assert "No Meshtastic devices detected" in capsys.readouterr().out
@@ -608,3 +668,210 @@ def test_list_channels_entry_point_accepts_working_dir(
 
     assert result == 0
     assert "No channel sets found" in capsys.readouterr().out
+
+
+def test_run_help_mentions_ble_option(capsys: pytest.CaptureFixture[str]) -> None:
+    cli.run_help()
+    out = capsys.readouterr().out
+
+    assert "--ble" in out
+
+
+def test_run_scan_lists_serial_ports(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: ["COM3", "COM5"])
+
+    result = cli.run_scan(False)
+    out = capsys.readouterr().out
+
+    assert result == 0
+    assert "COM3" in out
+    assert "COM5" in out
+
+
+def test_run_scan_with_no_serial_ports_reports_none(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+
+    result = cli.run_scan(False)
+
+    assert result == 0
+    assert "No Meshtastic devices detected." in capsys.readouterr().out
+
+
+def test_run_scan_ble_lists_ble_devices(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ble", lambda: ["Jeba 325c (AA:BB:CC:DD:EE:FF)"])
+    monkeypatch.setattr(
+        cli.device,
+        "scan_ports",
+        lambda: (_ for _ in ()).throw(AssertionError("should not scan serial ports when --ble given")),
+    )
+
+    result = cli.run_scan(True)
+    out = capsys.readouterr().out
+
+    assert result == 0
+    assert "Jeba 325c (AA:BB:CC:DD:EE:FF)" in out
+
+
+def test_run_scan_ble_with_no_devices_reports_none(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ble", lambda: [])
+
+    result = cli.run_scan(True)
+
+    assert result == 0
+    assert "No Meshtastic BLE devices detected." in capsys.readouterr().out
+
+
+def test_main_scan_ble_dispatches_to_run_scan_with_ble_true(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ble", lambda: ["Jeba 325c (AA:BB:CC:DD:EE:FF)"])
+
+    result = cli.main(["scan", "--ble"])
+
+    assert result == 0
+    assert "Jeba 325c (AA:BB:CC:DD:EE:FF)" in capsys.readouterr().out
+
+
+def test_run_backup_uses_ble_without_resolving_port(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        cli.device,
+        "scan_ports",
+        lambda: (_ for _ in ()).throw(AssertionError("should not scan when --ble given")),
+    )
+    captured: dict[str, object] = {}
+
+    @contextmanager
+    def fake_open_device(port: str | None, ble: str | None):
+        captured["port"] = port
+        captured["ble"] = ble
+        yield object()
+
+    monkeypatch.setattr(cli.device, "open_device", fake_open_device)
+    monkeypatch.setattr(cli.device, "backup_from_interface", lambda _i: {"node_id": "!abc"})
+
+    result = cli.run_backup(tmp_path, None, "any", False)
+
+    assert result == 0
+    assert captured == {"port": None, "ble": "any"}
+
+
+def test_run_restore_uses_ble_without_resolving_port(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    payload = backup_module.build_backup_payload(
+        node_id="!a1b2c3d4",
+        long_name=None,
+        short_name=None,
+        channel_url=None,
+        local_config=localonly_pb2.LocalConfig(),
+        module_config=localonly_pb2.LocalModuleConfig(),
+    )
+    storage.write_backup(tmp_path, "!a1b2c3d4", payload, timestamp)
+    monkeypatch.setattr(
+        cli.device,
+        "scan_ports",
+        lambda: (_ for _ in ()).throw(AssertionError("should not scan when --ble given")),
+    )
+    captured: dict[str, object] = {}
+
+    @contextmanager
+    def fake_open_device(port: str | None, ble: str | None):
+        captured["port"] = port
+        captured["ble"] = ble
+        yield object()
+
+    monkeypatch.setattr(cli.device, "open_device", fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _i: "!a1b2c3d4")
+    monkeypatch.setattr(cli.device, "restore_to_interface", lambda _i, _b: None)
+
+    result = cli.run_restore(tmp_path, None, "any", None, None)
+
+    assert result == 0
+    assert captured == {"port": None, "ble": "any"}
+
+
+def test_run_device_backups_uses_ble_without_resolving_port(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        cli.device,
+        "scan_ports",
+        lambda: (_ for _ in ()).throw(AssertionError("should not scan when --ble given")),
+    )
+    captured: dict[str, object] = {}
+
+    @contextmanager
+    def fake_open_device(port: str | None, ble: str | None):
+        captured["port"] = port
+        captured["ble"] = ble
+        yield object()
+
+    monkeypatch.setattr(cli.device, "open_device", fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _i: "!abc")
+
+    result = cli.run_device_backups(tmp_path, None, "Jeba 325c")
+
+    assert result == 0
+    assert captured == {"port": None, "ble": "Jeba 325c"}
+
+
+def test_run_export_channels_uses_ble_without_resolving_port(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        cli.device,
+        "scan_ports",
+        lambda: (_ for _ in ()).throw(AssertionError("should not scan when --ble given")),
+    )
+    captured: dict[str, object] = {}
+
+    @contextmanager
+    def fake_open_device(port: str | None, ble: str | None):
+        captured["port"] = port
+        captured["ble"] = ble
+        yield object()
+
+    monkeypatch.setattr(cli.device, "open_device", fake_open_device)
+    monkeypatch.setattr(cli.device, "export_channel_url", lambda _i: "https://example")
+
+    result = cli.run_export_channels(tmp_path, None, "any", "office", False)
+
+    assert result == 0
+    assert captured == {"port": None, "ble": "any"}
+
+
+def test_run_import_channels_uses_ble_without_resolving_port(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "https://example"})
+    monkeypatch.setattr(
+        cli.device,
+        "scan_ports",
+        lambda: (_ for _ in ()).throw(AssertionError("should not scan when --ble given")),
+    )
+    captured: dict[str, object] = {}
+
+    @contextmanager
+    def fake_open_device(port: str | None, ble: str | None):
+        captured["port"] = port
+        captured["ble"] = ble
+        yield object()
+
+    monkeypatch.setattr(cli.device, "open_device", fake_open_device)
+    monkeypatch.setattr(cli.device, "import_channel_url", lambda _i, _url: None)
+
+    result = cli.run_import_channels(tmp_path, None, "any", "office")
+
+    assert result == 0
+    assert captured == {"port": None, "ble": "any"}

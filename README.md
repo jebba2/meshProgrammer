@@ -1,6 +1,6 @@
 # meshprogrammer
 
-A CLI for backing up and restoring [Meshtastic](https://meshtastic.org/) device configs over USB serial.
+A CLI for backing up and restoring [Meshtastic](https://meshtastic.org/) device configs over USB serial or Bluetooth (BLE).
 
 Backups are stored under a `working/` folder in the repo root, one subfolder per device named by the device's own node id (e.g. `!a1b2c3d4`), with one timestamped JSON file per backup: `backup-<timestamp>.json`, or `encryptedbackup-<timestamp>.json` if it was saved with `--encrypt`. Shared channel sets (see `export-channels`/`import-channels` below) live under `working/channels/`, one named file each. `working/` is gitignored because backups and channel sets can contain device private/admin keys and channel encryption keys.
 
@@ -73,9 +73,15 @@ uv run meshprogrammer scan
 uv run mesh-scan
 ```
 
+Pass `--ble` to scan for nearby Meshtastic BLE devices instead (takes about 10 seconds):
+
+```
+uv run mesh-scan --ble
+```
+
 ### `backup` / `mesh-backup`
 
-Back up the config of a connected device. Writes a new timestamped backup under `working/<node-id>/`. `--port` can be omitted if exactly one Meshtastic device is connected -- see [`--port`](#--port) below.
+Back up the config of a connected device. Writes a new timestamped backup under `working/<node-id>/`. `--port` can be omitted if exactly one Meshtastic device is connected -- see [`--port`](#--port) and [`--ble`](#--ble) below.
 
 ```
 uv run meshprogrammer backup --port COM5
@@ -83,6 +89,9 @@ uv run mesh-backup --port COM5
 
 # Omit --port if only one device is connected
 uv run mesh-backup
+
+# Connect over BLE instead of serial
+uv run mesh-backup --ble
 
 # Encrypt the backup with a password (prompted for, with confirmation)
 uv run mesh-backup --port COM5 --encrypt
@@ -101,6 +110,9 @@ uv run mesh-restore --port COM5 --node-id "!a1b2c3d4"
 
 # Restore an exact backup file
 uv run mesh-restore --port COM5 --file working/!a1b2c3d4/backup-20260624T153000Z.json
+
+# Connect over BLE instead of serial
+uv run mesh-restore --ble
 ```
 
 ### `list` / `mesh-list`
@@ -139,6 +151,9 @@ Save a connected device's channels (and the LoRa modem config they depend on) to
 uv run meshprogrammer export-channels --port COM5 office
 uv run mesh-export-channels --port COM5 office
 
+# Connect over BLE instead of serial
+uv run mesh-export-channels office --ble
+
 # Encrypt the saved channel set with a password (prompted for, with confirmation)
 uv run mesh-export-channels --port COM5 --encrypt office
 ```
@@ -150,6 +165,9 @@ Apply a saved channel set to a connected device. This **overwrites** the device'
 ```
 uv run meshprogrammer import-channels --port COM5 office
 uv run mesh-import-channels --port COM5 office
+
+# Connect over BLE instead of serial
+uv run mesh-import-channels office --ble
 ```
 
 ### Encrypting backups and channel sets
@@ -170,6 +188,22 @@ uv run mesh-backup
 # Multiple devices detected (COM3, COM5). Specify --port to choose one.
 ```
 
+### `--ble`
+
+The same commands also accept `--ble` instead of `--port`, to connect over Bluetooth instead of USB serial -- the two are mutually exclusive. Used alone, `--ble` connects to the only nearby Meshtastic BLE device, if there's exactly one (use `mesh-scan --ble` to see what's nearby first). Give it a value -- the device's advertised name or BLE address -- to pick a specific one when more than one is nearby:
+
+```
+uv run mesh-backup --ble
+uv run mesh-backup --ble "Jeba 325c"
+```
+
+For `export-channels`/`import-channels`, put the channel-set name *before* `--ble` (or use `--ble=NAME`), since `--ble`'s optional value would otherwise swallow the name as its own argument:
+
+```
+uv run mesh-export-channels office --ble
+uv run mesh-export-channels --ble=mydevice office
+```
+
 ### `--working-dir`
 
 `backup`, `restore`, `list`, `device-backups`, `list-channels`, `export-channels`, and `import-channels` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
@@ -186,4 +220,4 @@ uv run pytest
 uv run pyright meshprogrammer main.py
 ```
 
-`meshprogrammer/device.py` talks directly to real hardware over serial and has no automated tests -- everything else (`storage.py`, `backup.py`, `crypto.py`, `cli.py`) is covered by unit tests. See [TESTING.md](TESTING.md) for the manual checklist to run against a real device whenever device-facing behavior changes.
+`meshprogrammer/device.py` talks directly to real hardware over serial or BLE and has no automated tests -- everything else (`storage.py`, `backup.py`, `crypto.py`, `cli.py`) is covered by unit tests. See [TESTING.md](TESTING.md) for the manual checklist to run against a real device whenever device-facing behavior changes.
