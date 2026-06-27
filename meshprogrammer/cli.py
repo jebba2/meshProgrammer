@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from meshtastic.serial_interface import SerialInterface
+from meshtastic.mesh_interface import MeshInterface
 
 from meshprogrammer import backup as backup_module
 from meshprogrammer import crypto, device, storage
@@ -22,12 +22,22 @@ def _add_working_dir_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _add_port_arg(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
+def _add_connection_args(parser: argparse.ArgumentParser) -> None:
+    """Add the mutually exclusive --port (serial) / --ble args for picking a device."""
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "--port",
         default=None,
         help="Serial port the device is connected on, e.g. COM3 "
         "(auto-detected if exactly one Meshtastic device is connected)",
+    )
+    group.add_argument(
+        "--ble",
+        nargs="?",
+        const="any",
+        default=None,
+        help="Connect over BLE instead of serial, optionally naming the device "
+        "(defaults to the only nearby Meshtastic BLE device, if there's exactly one)",
     )
 
 
@@ -44,20 +54,26 @@ def build_parser() -> argparse.ArgumentParser:
         description="Backup and restore Meshtastic device configs",
         epilog=(
             "backup, restore, device-backups, export-channels, and import-channels accept "
-            "--port (auto-detected if exactly one device is connected). backup and "
-            "export-channels also accept --encrypt to password-protect the saved file. "
-            "Run 'meshprogrammer <command> --help' for a command's full options."
+            "--port (auto-detected if exactly one device is connected) or --ble to connect "
+            "over Bluetooth instead. backup and export-channels also accept --encrypt to "
+            "password-protect the saved file. Run 'meshprogrammer <command> --help' for a "
+            "command's full options."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("help", help="List all commands")
 
-    subparsers.add_parser("scan", help="List connected Meshtastic serial devices")
+    scan_parser = subparsers.add_parser("scan", help="List connected Meshtastic serial devices")
+    scan_parser.add_argument(
+        "--ble",
+        action="store_true",
+        help="Scan for nearby Meshtastic BLE devices instead of serial ports",
+    )
 
     backup_parser = subparsers.add_parser("backup", help="Back up a connected device's config")
     _add_working_dir_arg(backup_parser)
-    _add_port_arg(backup_parser)
+    _add_connection_args(backup_parser)
     backup_parser.add_argument(
         "--encrypt",
         action="store_true",
@@ -66,7 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     restore_parser = subparsers.add_parser("restore", help="Restore a backup onto a connected device")
     _add_working_dir_arg(restore_parser)
-    _add_port_arg(restore_parser)
+    _add_connection_args(restore_parser)
     restore_target = restore_parser.add_mutually_exclusive_group()
     restore_target.add_argument(
         "--file", type=Path, default=None, help="Specific backup file to restore"
@@ -85,7 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="List backups for the connected device (auto-detected if only one)",
     )
     _add_working_dir_arg(device_backups_parser)
-    _add_port_arg(device_backups_parser)
+    _add_connection_args(device_backups_parser)
 
     list_channels_parser = subparsers.add_parser(
         "list-channels", help="List known channel sets saved with export-channels"
@@ -96,7 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
         "export-channels", help="Save a connected device's channels to a named, sharable file"
     )
     _add_working_dir_arg(export_channels_parser)
-    _add_port_arg(export_channels_parser)
+    _add_connection_args(export_channels_parser)
     export_channels_parser.add_argument(
         "--encrypt",
         action="store_true",
@@ -109,7 +125,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Apply a saved channel set to a connected device, overwriting its current channels",
     )
     _add_working_dir_arg(import_channels_parser)
-    _add_port_arg(import_channels_parser)
+    _add_connection_args(import_channels_parser)
     import_channels_parser.add_argument("name", help="Name of the saved channel set to apply")
 
     return parser
@@ -121,8 +137,16 @@ def run_help() -> int:
     return 0
 
 
-def run_scan() -> int:
-    """List connected Meshtastic serial devices."""
+def run_scan(ble: bool) -> int:
+    """List connected Meshtastic devices: serial ports, or nearby BLE devices if ``ble``."""
+    if ble:
+        devices = device.scan_ble()
+        if not devices:
+            print("No Meshtastic BLE devices detected.")
+            return 0
+        for ble_device in devices:
+            print(ble_device)
+        return 0
     ports = device.scan_ports()
     if not ports:
         print("No Meshtastic devices detected.")
@@ -169,6 +193,10 @@ def _resolve_port(port: str | None) -> str | None:
     return None
 
 
+def _connection_label(port: str | None, ble: str | None) -> str:
+    return f"BLE ({ble})" if ble is not None else str(port)
+
+
 def _decrypt_if_needed(data: dict[str, Any]) -> dict[str, Any] | None:
     """Return ``data`` as-is if it's a plain payload, or prompt and decrypt if encrypted.
 
@@ -184,12 +212,13 @@ def _decrypt_if_needed(data: dict[str, Any]) -> dict[str, Any] | None:
         return None
 
 
-def run_backup(working_dir: Path, port: str | None, encrypt: bool) -> int:
-    """Back up the config of the device connected on ``port`` (auto-detected if not given)."""
-    port = _resolve_port(port)
-    if port is None:
-        return 1
-    with device.open_device(port) as interface:
+def run_backup(working_dir: Path, port: str | None, ble: str | None, encrypt: bool) -> int:
+    """Back up the config of the device on ``port``/``ble`` (port auto-detected if neither given)."""
+    if ble is None:
+        port = _resolve_port(port)
+        if port is None:
+            return 1
+    with device.open_device(port, ble) as interface:
         payload = device.backup_from_interface(interface)
     node_id = payload["node_id"]
     if encrypt:
@@ -200,7 +229,7 @@ def run_backup(working_dir: Path, port: str | None, encrypt: bool) -> int:
     return 0
 
 
-def _apply_restore(interface: SerialInterface, backup_path: Path) -> bool:
+def _apply_restore(interface: MeshInterface, backup_path: Path) -> bool:
     """Decrypt (if needed) and restore the backup at ``backup_path``.
 
     Returns False (after printing an error) if an encrypted backup's
@@ -215,24 +244,27 @@ def _apply_restore(interface: SerialInterface, backup_path: Path) -> bool:
     return True
 
 
-def run_restore(working_dir: Path, port: str | None, file: Path | None, node_id: str | None) -> int:
-    """Restore a backup onto the device connected on ``port`` (auto-detected if not given).
+def run_restore(
+    working_dir: Path, port: str | None, ble: str | None, file: Path | None, node_id: str | None
+) -> int:
+    """Restore a backup onto the device on ``port``/``ble`` (port auto-detected if neither given).
 
     If ``file`` is given, restore that exact backup. Otherwise restore the
     latest backup for ``node_id``, or for the connected device's own node id
     if ``node_id`` is also not given.
     """
-    port = _resolve_port(port)
-    if port is None:
-        return 1
+    if ble is None:
+        port = _resolve_port(port)
+        if port is None:
+            return 1
 
     if file is not None:
-        with device.open_device(port) as interface:
+        with device.open_device(port, ble) as interface:
             if not _apply_restore(interface, file):
                 return 1
         return 0
 
-    with device.open_device(port) as interface:
+    with device.open_device(port, ble) as interface:
         target_node_id = node_id or device.get_node_id(interface)
         backup_path = storage.latest_backup(working_dir, target_node_id)
         if backup_path is None:
@@ -261,12 +293,13 @@ def run_list(working_dir: Path) -> int:
     return 0
 
 
-def run_device_backups(working_dir: Path, port: str | None) -> int:
-    """Print backups for the connected device (auto-detected if not given)."""
-    port = _resolve_port(port)
-    if port is None:
-        return 1
-    with device.open_device(port) as interface:
+def run_device_backups(working_dir: Path, port: str | None, ble: str | None) -> int:
+    """Print backups for the device on ``port``/``ble`` (port auto-detected if neither given)."""
+    if ble is None:
+        port = _resolve_port(port)
+        if port is None:
+            return 1
+    with device.open_device(port, ble) as interface:
         node_id = device.get_node_id(interface)
     backups = storage.list_backups(working_dir, node_id)
     if not backups:
@@ -288,15 +321,18 @@ def run_list_channels(working_dir: Path) -> int:
     return 0
 
 
-def run_export_channels(working_dir: Path, port: str | None, name: str, encrypt: bool) -> int:
+def run_export_channels(
+    working_dir: Path, port: str | None, ble: str | None, name: str, encrypt: bool
+) -> int:
     """Save the connected device's channels to a named, sharable file.
 
-    ``port`` is auto-detected if not given and exactly one device is connected.
+    ``port`` is auto-detected if neither it nor ``ble`` is given.
     """
-    port = _resolve_port(port)
-    if port is None:
-        return 1
-    with device.open_device(port) as interface:
+    if ble is None:
+        port = _resolve_port(port)
+        if port is None:
+            return 1
+    with device.open_device(port, ble) as interface:
         channel_url = device.export_channel_url(interface)
     payload: dict[str, Any] = {"channel_url": channel_url}
     if encrypt:
@@ -306,10 +342,10 @@ def run_export_channels(working_dir: Path, port: str | None, name: str, encrypt:
     return 0
 
 
-def run_import_channels(working_dir: Path, port: str | None, name: str) -> int:
+def run_import_channels(working_dir: Path, port: str | None, ble: str | None, name: str) -> int:
     """Apply a saved channel set to the connected device, overwriting its current channels.
 
-    ``port`` is auto-detected if not given and exactly one device is connected.
+    ``port`` is auto-detected if neither it nor ``ble`` is given.
     """
     try:
         data = storage.read_channels(working_dir, name)
@@ -321,13 +357,14 @@ def run_import_channels(working_dir: Path, port: str | None, name: str) -> int:
     if data is None:
         return 1
 
-    port = _resolve_port(port)
-    if port is None:
-        return 1
+    if ble is None:
+        port = _resolve_port(port)
+        if port is None:
+            return 1
 
-    with device.open_device(port) as interface:
+    with device.open_device(port, ble) as interface:
         device.import_channel_url(interface, data["channel_url"])
-    print(f"Applied channel set '{name}' to device on {port}")
+    print(f"Applied channel set '{name}' to device on {_connection_label(port, ble)}")
     return 0
 
 
@@ -338,21 +375,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "help":
         return run_help()
     if args.command == "scan":
-        return run_scan()
+        return run_scan(args.ble)
     if args.command == "backup":
-        return run_backup(args.working_dir, args.port, args.encrypt)
+        return run_backup(args.working_dir, args.port, args.ble, args.encrypt)
     if args.command == "restore":
-        return run_restore(args.working_dir, args.port, args.file, args.node_id)
+        return run_restore(args.working_dir, args.port, args.ble, args.file, args.node_id)
     if args.command == "list":
         return run_list(args.working_dir)
     if args.command == "device-backups":
-        return run_device_backups(args.working_dir, args.port)
+        return run_device_backups(args.working_dir, args.port, args.ble)
     if args.command == "list-channels":
         return run_list_channels(args.working_dir)
     if args.command == "export-channels":
-        return run_export_channels(args.working_dir, args.port, args.name, args.encrypt)
+        return run_export_channels(args.working_dir, args.port, args.ble, args.name, args.encrypt)
     if args.command == "import-channels":
-        return run_import_channels(args.working_dir, args.port, args.name)
+        return run_import_channels(args.working_dir, args.port, args.ble, args.name)
 
     parser.error(f"Unknown command: {args.command}")
     return 1

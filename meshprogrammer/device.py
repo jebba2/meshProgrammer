@@ -16,6 +16,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import meshtastic.util
+from meshtastic.ble_interface import BLEInterface
+from meshtastic.mesh_interface import MeshInterface
 from meshtastic.serial_interface import SerialInterface
 
 from meshprogrammer.backup import BackupData, build_backup_payload
@@ -54,17 +56,30 @@ def scan_ports() -> list[str]:
     return meshtastic.util.findPorts(eliminate_duplicates=True)
 
 
+def scan_ble() -> list[str]:
+    """Return nearby Meshtastic BLE devices as human-readable identifiers ("name (address)")."""
+    return [f"{d.name} ({d.address})" for d in BLEInterface.scan()]
+
+
 @contextmanager
-def open_device(port: str) -> Iterator[SerialInterface]:
-    """Open a serial connection to the device at ``port``, closing it on exit."""
-    interface = SerialInterface(devPath=port)
+def open_device(port: str | None = None, ble: str | None = None) -> Iterator[MeshInterface]:
+    """Open a connection to the device on serial ``port``, or over BLE if ``ble`` is given.
+
+    Exactly one of ``port``/``ble`` is expected. ``ble == "any"`` connects to the
+    only nearby Meshtastic BLE device, if there's exactly one (raises
+    ``BLEInterface.BLEError`` otherwise). Closes the connection on exit.
+    """
+    if ble is not None:
+        interface: MeshInterface = BLEInterface(None if ble == "any" else ble)
+    else:
+        interface = SerialInterface(devPath=port)
     try:
         yield interface
     finally:
         interface.close()
 
 
-def get_node_id(interface: SerialInterface) -> str:
+def get_node_id(interface: MeshInterface) -> str:
     """Return the connected device's own node id, e.g. ``!a1b2c3d4``."""
     info = interface.getMyNodeInfo()
     if not info or "user" not in info or "id" not in info["user"]:
@@ -72,7 +87,7 @@ def get_node_id(interface: SerialInterface) -> str:
     return info["user"]["id"]
 
 
-def backup_from_interface(interface: SerialInterface) -> dict:
+def backup_from_interface(interface: MeshInterface) -> dict:
     """Read the connected device's config into a JSON-serializable backup payload."""
     node = interface.localNode
     return build_backup_payload(
@@ -85,7 +100,7 @@ def backup_from_interface(interface: SerialInterface) -> dict:
     )
 
 
-def restore_to_interface(interface: SerialInterface, backup: BackupData) -> None:
+def restore_to_interface(interface: MeshInterface, backup: BackupData) -> None:
     """Write a previously captured backup back onto the connected device."""
     node = interface.localNode
     node.localConfig = backup.local_config
@@ -103,12 +118,12 @@ def restore_to_interface(interface: SerialInterface, backup: BackupData) -> None
         node.setURL(backup.channel_url)
 
 
-def export_channel_url(interface: SerialInterface) -> str:
+def export_channel_url(interface: MeshInterface) -> str:
     """Return the connected device's channels as a sharable channel URL."""
     return interface.localNode.getURL(includeAll=True)
 
 
-def import_channel_url(interface: SerialInterface, channel_url: str) -> None:
+def import_channel_url(interface: MeshInterface, channel_url: str) -> None:
     """Apply a channel URL to the connected device, overwriting its current channels.
 
     Matches the same overwrite-by-index behavior as scanning a channel QR

@@ -1,11 +1,12 @@
 # Manual Test Plan
 
-`meshprogrammer/storage.py`, `backup.py`, `crypto.py`, and the non-hardware parts of `cli.py` are covered by automated tests (`uv run pytest`). `device.py` and the hardware-touching CLI handlers are not -- they require a real Meshtastic device over USB serial. Run through this checklist against real hardware whenever device-facing behavior changes.
+`meshprogrammer/storage.py`, `backup.py`, `crypto.py`, and the non-hardware parts of `cli.py` are covered by automated tests (`uv run pytest`). `device.py` and the hardware-touching CLI handlers are not -- they require a real Meshtastic device over USB serial or BLE. Run through this checklist against real hardware whenever device-facing behavior changes.
 
 ## Prerequisites
 
 - [ ] At least one Meshtastic device connected via USB serial
 - [ ] (Optional, for cross-device tests) a second Meshtastic device
+- [ ] (Optional, for BLE tests) a Meshtastic device with Bluetooth enabled, paired/in range
 - [ ] `uv sync` has been run
 - [ ] Noted the device's serial port (e.g. `COM5`) from `scan` below
 
@@ -16,7 +17,7 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 - [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, list-channels, export-channels, import-channels) with a one-line description
 - [ ] `uv run mesh-help` produces the same output
 - [ ] Output matches `uv run meshprogrammer --help`
-- [ ] Output mentions `--port` and `--encrypt` and which commands accept them
+- [ ] Output mentions `--port`, `--ble`, and `--encrypt` and which commands accept them
 
 ## scan / mesh-scan
 
@@ -24,6 +25,8 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 - [ ] `uv run mesh-scan` produces the same result
 - [ ] Unplug the device; `uv run mesh-scan` reports "No Meshtastic devices detected."
 - [ ] `uv run mesh-scan --working-dir /tmp` is rejected (scan doesn't accept this flag)
+- [ ] `uv run mesh-scan --ble` lists the connected device's BLE name and address (takes ~10 seconds)
+- [ ] With no BLE device nearby, `uv run mesh-scan --ble` reports "No Meshtastic BLE devices detected."
 
 ## backup / mesh-backup
 
@@ -129,6 +132,16 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 - [ ] (If you have a second device) with two devices connected, `uv run mesh-backup` (no `--port`) prints "Multiple devices detected (<PORT1>, <PORT2>). Specify --port to choose one." and exits non-zero
 - [ ] In both cases above, no backup file is written and the device(s) are untouched
 - [ ] The same no-device/multiple-device behavior holds for `mesh-restore`, `mesh-device-backups`, `mesh-export-channels`, and `mesh-import-channels`
+
+## --ble
+
+- [ ] `uv run mesh-backup --ble` connects over Bluetooth to the only nearby Meshtastic BLE device and succeeds
+- [ ] `uv run mesh-backup --ble "<device name>"` connects to that specific device by its advertised name
+- [ ] `uv run mesh-backup --port COM5 --ble` is rejected (mutually exclusive)
+- [ ] With no BLE device nearby, `uv run mesh-backup --ble` fails with a clear error (not a crash), e.g. mentioning "No Meshtastic BLE peripheral ... found"
+- [ ] (If you have a second BLE device) with two BLE devices nearby, `uv run mesh-backup --ble` (no name) fails with a clear "More than one Meshtastic BLE peripheral ... found" error
+- [ ] The same --ble behavior (connect, name selection, mutual exclusion with --port, clear errors) holds for `mesh-restore`, `mesh-device-backups`, `mesh-export-channels`, and `mesh-import-channels`
+- [ ] For `mesh-export-channels`/`mesh-import-channels`, the channel-set name must come before `--ble` (e.g. `mesh-export-channels office --ble`), or use `--ble=<name>` -- putting it after a bare `--ble <value>` gets swallowed as the BLE device name instead of the channel-set name
 
 ## General
 
