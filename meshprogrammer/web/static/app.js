@@ -114,15 +114,19 @@ async function refreshDevices() {
   }
 }
 
-async function refreshChannels() {
-  const data = await getJSON("/api/list-channels");
-  const list = document.getElementById("channel-list");
-  list.innerHTML = "";
-  for (const channelSet of data.channel_sets) {
+function renderChannelSetList(listEl, channelSets) {
+  listEl.innerHTML = "";
+  for (const channelSet of channelSets) {
     const li = document.createElement("li");
     li.textContent = channelSet.name + (channelSet.encrypted ? " (encrypted)" : "");
-    list.appendChild(li);
+    listEl.appendChild(li);
   }
+}
+
+async function refreshChannels() {
+  const data = await getJSON("/api/list-channels");
+  renderChannelSetList(document.getElementById("channel-list"), data.channel_sets);
+  renderChannelSetList(document.getElementById("import-channel-sets"), data.channel_sets);
 }
 
 function wireRefreshButtons() {
