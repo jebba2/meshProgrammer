@@ -14,7 +14,7 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 
 ## help / mesh-help
 
-- [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, list-channels, export-channels, import-channels, gui) with a one-line description
+- [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, list-channels, export-channels, import-channels, gui, meshtastic-web) with a one-line description
 - [ ] `uv run mesh-help` produces the same output
 - [ ] Output matches `uv run meshprogrammer --help`
 - [ ] Output mentions `--port`, `--ble`, and `--encrypt` and which commands accept them
@@ -151,6 +151,10 @@ The GUI covers all 8 device/storage commands above through a browser instead of 
 - [ ] `uv run meshprogrammer gui` produces the same result
 - [ ] `uv run mesh-gui --http-port 8765` serves on that exact port instead of an OS-assigned one
 - [ ] `uv run mesh-gui --working-dir <DIR>` reads/writes backups and channel sets under `<DIR>` instead of `working/`
+- [ ] `mesh-gui` also starts the meshtastic-web client alongside it (prints a second "Meshtastic web client running at ..." line); clicking "Open Meshtastic Web Client" in the page opens a working app, no manual `mesh-meshtastic-web` needed
+- [ ] Stopping `mesh-gui` (Ctrl+C) stops the meshtastic-web sidecar too -- its port stops responding
+- [ ] With no network and no prior cache, `mesh-gui` still starts and works normally (just without the meshtastic-web client), printing a "couldn't download it" warning instead of crashing
+- [ ] With `mesh-meshtastic-web` already running separately on its default port, starting `mesh-gui` doesn't error -- it prints a "port unavailable, assuming it's already running separately" warning and the existing one keeps working
 - [ ] The server is unreachable from another machine on the LAN (e.g. try `http://<this-machine's-LAN-IP>:<port>/` from a second device -- it should fail to connect, confirming it's bound to 127.0.0.1 only, not 0.0.0.0)
 - [ ] The dashboard's "Known devices and backups" and "Saved channel sets" lists match `mesh-list`/`mesh-list-channels` output, and their Refresh buttons pick up new entries without reloading the page
 - [ ] Scanning serial ports lists the connected device's port; scanning BLE (~10s) shows a spinner/disabled button for the duration and then lists nearby devices
@@ -164,6 +168,23 @@ The GUI covers all 8 device/storage commands above through a browser instead of 
 - [ ] Export channels (plain and encrypted) writes a channel set visible in "Saved channel sets" after refreshing
 - [ ] Import channels (plain) applies successfully; an encrypted set follows the same needs-password / wrong-password / correct-password flow as restore
 - [ ] Closing the terminal (Ctrl+C) running `mesh-gui` stops the server -- the page stops responding
+
+## meshtastic-web / mesh-meshtastic-web
+
+This launches a separate, third-party project (the official Meshtastic web client) -- it doesn't need a Meshtastic device connected to test the basics, but a connected device (and pairing it inside that client via Web Serial/Web Bluetooth) is needed to confirm it's actually usable end-to-end.
+
+- [ ] First run, with no prior cache: `uv run mesh-meshtastic-web` downloads the release, prints a `http://127.0.0.1:8766/` URL, and opens it in your default browser -- requires network access
+- [ ] `<working-dir>/.meshtastic-web-client/v2.7.1/` (or whatever `--client-version` you used) now contains `index.html` and no leftover `.gz` files
+- [ ] Stop it (Ctrl+C) and run it again: it starts immediately, without re-downloading (no network activity)
+- [ ] The page loads the Meshtastic web client UI (not a blank page or a 404)
+- [ ] Visiting a deep link directly, e.g. `http://127.0.0.1:8766/messages/broadcast/0`, loads the app shell instead of a 404 (confirms the SPA fallback works)
+- [ ] `uv run meshprogrammer meshtastic-web` produces the same result as `mesh-meshtastic-web`
+- [ ] `uv run mesh-meshtastic-web --http-port 9000` serves on that port instead of the default `8766`
+- [ ] `uv run mesh-meshtastic-web --client-version <a different valid tag>` downloads and caches that version separately, without touching the `v2.7.1` cache
+- [ ] `uv run mesh-meshtastic-web --client-version not-a-real-tag` fails with a clear "Failed to download ..." error, not a raw traceback
+- [ ] The server is unreachable from another machine on the LAN (bound to 127.0.0.1 only, like `gui`)
+- [ ] In `mesh-gui`'s web UI, the "Open Meshtastic Web Client" link (at the top of the page) opens this same client, when `mesh-meshtastic-web` is running on its default port
+- [ ] Inside the Meshtastic web client, connecting to your actual device (Web Serial or Web Bluetooth) and sending a broadcast message works
 
 ## General
 

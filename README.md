@@ -187,6 +187,28 @@ uv run mesh-gui --http-port 8765
 
 `--working-dir` works the same as it does for the other commands (see [`--working-dir`](#--working-dir) below), but note that `gui` doesn't take `--port`/`--ble` -- device connection (serial port or BLE) is chosen per-action inside the browser UI instead.
 
+`gui` also starts the [`meshtastic-web`](#meshtastic-web--mesh-meshtastic-web) client alongside it (on its fixed default port, matching the "Open Meshtastic Web Client" link shown in the page) and stops it when `gui` stops. This is best-effort: if there's no network for a first-time download, or that port's already taken by a separately-running `mesh-meshtastic-web`, `gui` prints a warning and keeps running without it rather than failing.
+
+### `meshtastic-web` / `mesh-meshtastic-web`
+
+Download (first run only) and serve the official [Meshtastic web client](https://github.com/meshtastic/web) -- the same app behind [client.meshtastic.org](https://client.meshtastic.org) -- locally in your browser, for messaging and live device management that this tool itself doesn't do.
+
+```
+uv run meshprogrammer meshtastic-web
+uv run mesh-meshtastic-web
+```
+
+This is a separate, third-party, GPL-3.0-licensed project we don't vendor -- the command downloads a pinned release straight from its official GitHub releases at runtime (the same `build.tar` asset you could download yourself) and caches it under `<working-dir>/.meshtastic-web-client/<version>/`, so only the first run needs network access. Like `gui`, it binds to `127.0.0.1` only.
+
+Unlike `gui`'s ephemeral port, this defaults to a **fixed** port (`8766`) so the "Open Meshtastic Web Client" link shown in `gui`'s web UI keeps working across runs:
+
+```
+uv run mesh-meshtastic-web --http-port 9000          # use a different port
+uv run mesh-meshtastic-web --client-version v2.7.0   # pin a different release
+```
+
+If you change `--http-port` here, the "Open Meshtastic Web Client" link in `gui` (which always points at the default `8766`) will no longer match -- it only knows the default, not whatever port you actually used.
+
 ### Encrypting backups and channel sets
 
 `backup` and `export-channels` accept `--encrypt` to password-protect the saved file. You'll be prompted for the password (and asked to confirm it) interactively -- it's never passed on the command line, so it won't end up in shell history. `restore` and `import-channels` automatically detect an encrypted file and prompt for its password before decrypting and applying it.
@@ -223,7 +245,7 @@ uv run mesh-export-channels --ble=mydevice office
 
 ### `--working-dir`
 
-`backup`, `restore`, `list`, `device-backups`, `list-channels`, `export-channels`, `import-channels`, and `gui` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
+`backup`, `restore`, `list`, `device-backups`, `list-channels`, `export-channels`, `import-channels`, `gui`, and `meshtastic-web` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. For `meshtastic-web` this only changes where the downloaded client is cached (under `<dir>/.meshtastic-web-client/`), not any backup/channel data. `scan` doesn't take it, since it doesn't touch the working dir.
 
 ```
 uv run meshprogrammer list --working-dir /path/to/backups
@@ -237,4 +259,4 @@ uv run pytest
 uv run pyright meshprogrammer main.py
 ```
 
-`meshprogrammer/device.py` talks directly to real hardware over serial or BLE and has no automated tests -- everything else (`storage.py`, `backup.py`, `crypto.py`, `connection.py`, `cli.py`, `web/app.py`) is covered by unit tests. See [TESTING.md](TESTING.md) for the manual checklist to run against a real device whenever device-facing behavior changes.
+`meshprogrammer/device.py` talks directly to real hardware over serial or BLE and has no automated tests -- everything else (`storage.py`, `backup.py`, `crypto.py`, `connection.py`, `cli.py`, `web/app.py`, `meshtastic_web.py`) is covered by unit tests (the actual download from GitHub is mocked at the network boundary; everything around it -- extraction, decompression, caching, serving -- runs for real against a fake tarball). See [TESTING.md](TESTING.md) for the manual checklist to run against a real device whenever device-facing behavior changes.

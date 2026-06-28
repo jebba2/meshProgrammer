@@ -6,7 +6,7 @@ import pytest
 from meshtastic.protobuf import localonly_pb2
 
 from meshprogrammer import backup as backup_module
-from meshprogrammer import cli, crypto, storage
+from meshprogrammer import cli, crypto, meshtastic_web, storage
 
 
 @contextmanager
@@ -609,9 +609,13 @@ class _FakeWsgiServer:
         self.app = app
         self.server_port = port or 54321
         self.served = False
+        self.shutdown_called = False
 
     def serve_forever(self) -> None:
         self.served = True
+
+    def shutdown(self) -> None:
+        self.shutdown_called = True
 
 
 def test_run_gui_binds_localhost_only(
@@ -626,14 +630,14 @@ def test_run_gui_binds_localhost_only(
 
     monkeypatch.setattr(cli, "make_server", _fake_make_server)
     monkeypatch.setattr(cli.webbrowser, "open", lambda _url: None)
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", lambda _w: tmp_path)
 
     result = cli.run_gui(tmp_path, http_port=None, open_browser=False)
 
     assert result == 0
-    [server] = fake_servers
-    assert server.host == "127.0.0.1"
-    assert server.requested_port == 0
-    assert server.served is True
+    gui_server = next(s for s in fake_servers if s.requested_port == 0)
+    assert gui_server.host == "127.0.0.1"
+    assert gui_server.served is True
 
 
 def test_run_gui_uses_given_http_port(
@@ -643,10 +647,11 @@ def test_run_gui_uses_given_http_port(
     monkeypatch.setattr(
         cli, "make_server", lambda host, port, app: fake_servers.append(_FakeWsgiServer(host, port, app)) or fake_servers[-1]
     )
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", lambda _w: tmp_path)
 
     cli.run_gui(tmp_path, http_port=8765, open_browser=False)
 
-    assert fake_servers[0].requested_port == 8765
+    assert any(s.requested_port == 8765 for s in fake_servers)
 
 
 def test_run_gui_opens_browser_with_bound_port(
@@ -655,6 +660,7 @@ def test_run_gui_opens_browser_with_bound_port(
     monkeypatch.setattr(
         cli, "make_server", lambda host, port, app: _FakeWsgiServer(host, port, app)
     )
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", lambda _w: tmp_path)
     opened: list[str] = []
     monkeypatch.setattr(cli.webbrowser, "open", lambda url: opened.append(url))
 
@@ -669,11 +675,161 @@ def test_run_gui_skips_browser_when_open_browser_false(
     monkeypatch.setattr(
         cli, "make_server", lambda host, port, app: _FakeWsgiServer(host, port, app)
     )
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", lambda _w: tmp_path)
     monkeypatch.setattr(
         cli.webbrowser, "open", lambda _url: (_ for _ in ()).throw(AssertionError("opened browser"))
     )
 
     result = cli.run_gui(tmp_path, http_port=8765, open_browser=False)
+
+    assert result == 0
+
+
+def test_run_gui_starts_meshtastic_web_alongside_and_shuts_it_down(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_servers: list[_FakeWsgiServer] = []
+
+    def _fake_make_server(host: str, port: int, app: object) -> _FakeWsgiServer:
+        server = _FakeWsgiServer(host, port, app)
+        fake_servers.append(server)
+        return server
+
+    monkeypatch.setattr(cli, "make_server", _fake_make_server)
+    monkeypatch.setattr(cli.webbrowser, "open", lambda _url: None)
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", lambda _w: tmp_path)
+
+    cli.run_gui(tmp_path, http_port=8765, open_browser=False)
+
+    meshtastic_web_server = next(
+        s for s in fake_servers if s.requested_port == meshtastic_web.DEFAULT_PORT
+    )
+    assert meshtastic_web_server.host == "127.0.0.1"
+    assert meshtastic_web_server.shutdown_called is True
+
+
+def test_run_gui_degrades_gracefully_when_meshtastic_web_download_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        cli, "make_server", lambda host, port, app: _FakeWsgiServer(host, port, app)
+    )
+    monkeypatch.setattr(cli.webbrowser, "open", lambda _url: None)
+
+    def _fail_download(_working_dir: Path) -> Path:
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", _fail_download)
+
+    result = cli.run_gui(tmp_path, http_port=8765, open_browser=False)
+
+    assert result == 0
+    assert "couldn't download it" in capsys.readouterr().out
+
+
+def test_run_gui_degrades_gracefully_when_meshtastic_web_port_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", lambda _w: tmp_path)
+    monkeypatch.setattr(cli.webbrowser, "open", lambda _url: None)
+
+    def _fake_make_server(host: str, port: int, app: object) -> _FakeWsgiServer:
+        if port == meshtastic_web.DEFAULT_PORT:
+            raise OSError("address already in use")
+        return _FakeWsgiServer(host, port, app)
+
+    monkeypatch.setattr(cli, "make_server", _fake_make_server)
+
+    result = cli.run_gui(tmp_path, http_port=8765, open_browser=False)
+
+    assert result == 0
+    assert "already running separately" in capsys.readouterr().out
+
+
+def test_build_parser_meshtastic_web_defaults() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["meshtastic-web"])
+
+    assert args.command == "meshtastic-web"
+    assert args.http_port == meshtastic_web.DEFAULT_PORT
+    assert args.client_version == meshtastic_web.DEFAULT_VERSION
+    assert args.working_dir == storage.DEFAULT_WORKING_DIR
+
+
+def test_build_parser_meshtastic_web_parses_overrides() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(
+        ["meshtastic-web", "--http-port", "9000", "--client-version", "v1.0.0"]
+    )
+
+    assert args.http_port == 9000
+    assert args.client_version == "v1.0.0"
+
+
+def test_run_meshtastic_web_binds_localhost_and_uses_downloaded_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_servers: list[_FakeWsgiServer] = []
+
+    def _fake_make_server(host: str, port: int, app: object) -> _FakeWsgiServer:
+        server = _FakeWsgiServer(host, port, app)
+        fake_servers.append(server)
+        return server
+
+    monkeypatch.setattr(cli, "make_server", _fake_make_server)
+    monkeypatch.setattr(cli.webbrowser, "open", lambda _url: None)
+
+    client_dir = tmp_path / "client"
+    client_dir.mkdir()
+    ensure_calls: list[tuple[Path, str]] = []
+
+    def _fake_ensure_client_downloaded(working_dir: Path, version: str) -> Path:
+        ensure_calls.append((working_dir, version))
+        return client_dir
+
+    monkeypatch.setattr(
+        cli.meshtastic_web, "ensure_client_downloaded", _fake_ensure_client_downloaded
+    )
+
+    result = cli.run_meshtastic_web(tmp_path, http_port=8766, version="v2.7.1", open_browser=False)
+
+    assert result == 0
+    assert ensure_calls == [(tmp_path, "v2.7.1")]
+    [server] = fake_servers
+    assert server.host == "127.0.0.1"
+    assert server.requested_port == 8766
+    assert server.served is True
+
+
+def test_run_meshtastic_web_opens_browser_with_bound_port(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        cli, "make_server", lambda host, port, app: _FakeWsgiServer(host, port, app)
+    )
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", lambda _w, _v: tmp_path)
+    opened: list[str] = []
+    monkeypatch.setattr(cli.webbrowser, "open", lambda url: opened.append(url))
+
+    cli.run_meshtastic_web(tmp_path, http_port=8766, version="v2.7.1", open_browser=True)
+
+    assert opened == ["http://127.0.0.1:8766/"]
+
+
+def test_run_meshtastic_web_skips_browser_when_open_browser_false(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        cli, "make_server", lambda host, port, app: _FakeWsgiServer(host, port, app)
+    )
+    monkeypatch.setattr(cli.meshtastic_web, "ensure_client_downloaded", lambda _w, _v: tmp_path)
+    monkeypatch.setattr(
+        cli.webbrowser, "open", lambda _url: (_ for _ in ()).throw(AssertionError("opened browser"))
+    )
+
+    result = cli.run_meshtastic_web(tmp_path, http_port=8766, version="v2.7.1", open_browser=False)
 
     assert result == 0
 

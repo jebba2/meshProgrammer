@@ -18,7 +18,7 @@ from flask import Flask, Response, abort, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException
 
 from meshprogrammer import backup as backup_module
-from meshprogrammer import connection, crypto, device, storage
+from meshprogrammer import connection, crypto, device, meshtastic_web, storage
 
 
 def _ok(**data: Any) -> Response:
@@ -89,7 +89,8 @@ def create_app(working_dir: Path) -> Flask:
 
     @app.route("/")
     def index():
-        return render_template("index.html")
+        meshtastic_web_url = f"http://127.0.0.1:{meshtastic_web.DEFAULT_PORT}/"
+        return render_template("index.html", meshtastic_web_url=meshtastic_web_url)
 
     @app.route("/api/scan")
     def scan():

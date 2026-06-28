@@ -22,6 +22,7 @@ mesh-list-channels = "meshprogrammer.cli:list_channels_entry_point"
 mesh-export-channels = "meshprogrammer.cli:export_channels_entry_point"
 mesh-import-channels = "meshprogrammer.cli:import_channels_entry_point"
 mesh-gui = "meshprogrammer.cli:gui_entry_point"
+mesh-meshtastic-web = "meshprogrammer.cli:meshtastic_web_entry_point"
 
 [build-system]
 requires = ["hatchling"]

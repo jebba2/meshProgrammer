@@ -3,6 +3,7 @@
 import argparse
 import getpass
 import sys
+import threading
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,7 +13,7 @@ from meshtastic.mesh_interface import MeshInterface
 from werkzeug.serving import make_server
 
 from meshprogrammer import backup as backup_module
-from meshprogrammer import connection, crypto, device, storage
+from meshprogrammer import connection, crypto, device, meshtastic_web, storage
 from meshprogrammer.web import create_app
 
 
@@ -138,6 +139,23 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Port for the local web server (default: an OS-assigned free port)",
+    )
+
+    meshtastic_web_parser = subparsers.add_parser(
+        "meshtastic-web",
+        help="Download (if needed) and open the official Meshtastic web client locally",
+    )
+    _add_working_dir_arg(meshtastic_web_parser)
+    meshtastic_web_parser.add_argument(
+        "--http-port",
+        type=int,
+        default=meshtastic_web.DEFAULT_PORT,
+        help="Port for the local web server (default: %(default)s)",
+    )
+    meshtastic_web_parser.add_argument(
+        "--client-version",
+        default=meshtastic_web.DEFAULT_VERSION,
+        help="meshtastic/web release tag to download and serve (default: %(default)s)",
     )
 
     return parser
@@ -376,6 +394,34 @@ def run_import_channels(working_dir: Path, port: str | None, ble: str | None, na
     return 0
 
 
+def _start_meshtastic_web_alongside_gui(working_dir: Path) -> Any:
+    """Best-effort start of the meshtastic-web client server on its default port.
+
+    Returns the running server (already serving in a background thread),
+    or None if it couldn't be started -- e.g. no network for a first-time
+    download, or the port's already taken by a separately-running
+    ``mesh-meshtastic-web``. Either way, ``gui`` keeps working without it.
+    """
+    try:
+        client_dir = meshtastic_web.ensure_client_downloaded(working_dir)
+    except RuntimeError as exc:
+        print(f"Meshtastic web client: couldn't download it, continuing without it ({exc})")
+        return None
+    try:
+        server = make_server(
+            "127.0.0.1", meshtastic_web.DEFAULT_PORT, meshtastic_web.create_static_app(client_dir)
+        )
+    except OSError as exc:
+        print(
+            f"Meshtastic web client: port {meshtastic_web.DEFAULT_PORT} unavailable, "
+            f"assuming it's already running separately ({exc})"
+        )
+        return None
+    print(f"Meshtastic web client running at http://127.0.0.1:{server.server_port}/")
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
 def run_gui(working_dir: Path, http_port: int | None, open_browser: bool = True) -> int:
     """Start the local web GUI and open it in the default browser.
 
@@ -384,11 +430,45 @@ def run_gui(working_dir: Path, http_port: int | None, open_browser: bool = True)
     isn't given, the OS assigns a free ephemeral port. ``make_server``
     binds and starts listening before returning, so opening the browser
     right after is safe -- no guessed delay needed.
+
+    Also starts the meshtastic-web client server alongside (best-effort,
+    on its fixed default port -- matching the link already shown in the
+    GUI), and stops it when this does.
     """
     app = create_app(working_dir)
     server = make_server("127.0.0.1", http_port or 0, app)
     url = f"http://127.0.0.1:{server.server_port}/"
+
+    meshtastic_web_server = _start_meshtastic_web_alongside_gui(working_dir)
+
     print(f"meshprogrammer GUI running at {url} (Ctrl+C to stop)")
+    if open_browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if meshtastic_web_server is not None:
+            meshtastic_web_server.shutdown()
+    return 0
+
+
+def run_meshtastic_web(
+    working_dir: Path, http_port: int, version: str, open_browser: bool = True
+) -> int:
+    """Download (if needed), serve, and open the official Meshtastic web client.
+
+    Binds to 127.0.0.1 only, same as ``gui``. The release is cached under
+    ``working_dir/.meshtastic-web-client/<version>/`` so later runs skip
+    the download. Defaults to a fixed port (unlike ``gui``'s ephemeral
+    one) so the web GUI's link to it stays valid across runs.
+    """
+    client_dir = meshtastic_web.ensure_client_downloaded(working_dir, version)
+    app = meshtastic_web.create_static_app(client_dir)
+    server = make_server("127.0.0.1", http_port, app)
+    url = f"http://127.0.0.1:{server.server_port}/"
+    print(f"Meshtastic web client running at {url} (Ctrl+C to stop)")
     if open_browser:
         webbrowser.open(url)
     try:
@@ -422,6 +502,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_import_channels(args.working_dir, args.port, args.ble, args.name)
     if args.command == "gui":
         return run_gui(args.working_dir, args.http_port)
+    if args.command == "meshtastic-web":
+        return run_meshtastic_web(args.working_dir, args.http_port, args.client_version)
 
     parser.error(f"Unknown command: {args.command}")
     return 1
@@ -481,6 +563,11 @@ def import_channels_entry_point(argv: list[str] | None = None) -> int:
 def gui_entry_point(argv: list[str] | None = None) -> int:
     """Console-script shortcut for ``meshprogrammer gui``."""
     return _run_subcommand("gui", argv)
+
+
+def meshtastic_web_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer meshtastic-web``."""
+    return _run_subcommand("meshtastic-web", argv)
 
 
 if __name__ == "__main__":
