@@ -107,7 +107,18 @@ function renderDeviceList(listEl, devices) {
   for (const deviceEntry of devices) {
     const li = document.createElement("li");
     const suffix = deviceEntry.backups.length === 1 ? "" : "s";
-    li.textContent = `${deviceEntry.node_id} (${deviceEntry.backups.length} backup${suffix})`;
+    const heading = document.createElement("span");
+    heading.textContent = `${deviceEntry.node_id} (${deviceEntry.backups.length} backup${suffix})`;
+    li.appendChild(heading);
+
+    const backupList = document.createElement("ul");
+    for (const filename of deviceEntry.backups) {
+      const backupLi = document.createElement("li");
+      backupLi.textContent = filename;
+      backupList.appendChild(backupLi);
+    }
+    li.appendChild(backupList);
+
     listEl.appendChild(li);
   }
 }
