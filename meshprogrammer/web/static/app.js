@@ -102,16 +102,20 @@ function injectConnectionFields() {
   });
 }
 
-async function refreshDevices() {
-  const data = await getJSON("/api/list");
-  const list = document.getElementById("device-list");
-  list.innerHTML = "";
-  for (const deviceEntry of data.devices) {
+function renderDeviceList(listEl, devices) {
+  listEl.innerHTML = "";
+  for (const deviceEntry of devices) {
     const li = document.createElement("li");
     const suffix = deviceEntry.backups.length === 1 ? "" : "s";
     li.textContent = `${deviceEntry.node_id} (${deviceEntry.backups.length} backup${suffix})`;
-    list.appendChild(li);
+    listEl.appendChild(li);
   }
+}
+
+async function refreshDevices() {
+  const data = await getJSON("/api/list");
+  renderDeviceList(document.getElementById("device-list"), data.devices);
+  renderDeviceList(document.getElementById("restore-device-list"), data.devices);
 }
 
 function renderChannelSetList(listEl, channelSets) {
