@@ -14,7 +14,7 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 
 ## help / mesh-help
 
-- [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, list-channels, export-channels, import-channels) with a one-line description
+- [ ] `uv run meshprogrammer help` lists every command (help, scan, backup, restore, list, device-backups, list-channels, export-channels, import-channels, gui) with a one-line description
 - [ ] `uv run mesh-help` produces the same output
 - [ ] Output matches `uv run meshprogrammer --help`
 - [ ] Output mentions `--port`, `--ble`, and `--encrypt` and which commands accept them
@@ -142,6 +142,28 @@ All commands below need the `uv run` prefix shown (e.g. `uv run mesh-scan`, `uv 
 - [ ] (If you have a second BLE device) with two BLE devices nearby, `uv run mesh-backup --ble` (no name) fails with a clear "More than one Meshtastic BLE peripheral ... found" error
 - [ ] The same --ble behavior (connect, name selection, mutual exclusion with --port, clear errors) holds for `mesh-restore`, `mesh-device-backups`, `mesh-export-channels`, and `mesh-import-channels`
 - [ ] For `mesh-export-channels`/`mesh-import-channels`, the channel-set name must come before `--ble` (e.g. `mesh-export-channels office --ble`), or use `--ble=<name>` -- putting it after a bare `--ble <value>` gets swallowed as the BLE device name instead of the channel-set name
+
+## gui / mesh-gui
+
+The GUI covers all 8 device/storage commands above through a browser instead of the terminal -- run through each action below at least once against real hardware.
+
+- [ ] `uv run mesh-gui` prints a `http://127.0.0.1:<port>/` URL and opens it in the default browser automatically
+- [ ] `uv run meshprogrammer gui` produces the same result
+- [ ] `uv run mesh-gui --http-port 8765` serves on that exact port instead of an OS-assigned one
+- [ ] `uv run mesh-gui --working-dir <DIR>` reads/writes backups and channel sets under `<DIR>` instead of `working/`
+- [ ] The server is unreachable from another machine on the LAN (e.g. try `http://<this-machine's-LAN-IP>:<port>/` from a second device -- it should fail to connect, confirming it's bound to 127.0.0.1 only, not 0.0.0.0)
+- [ ] The dashboard's "Known devices and backups" and "Saved channel sets" lists match `mesh-list`/`mesh-list-channels` output, and their Refresh buttons pick up new entries without reloading the page
+- [ ] Scanning serial ports lists the connected device's port; scanning BLE (~10s) shows a spinner/disabled button for the duration and then lists nearby devices
+- [ ] Backup (plain) succeeds and the new file shows up after refreshing the dashboard
+- [ ] Backup with "Encrypt" checked and a password succeeds; the saved file is encrypted (matches the `--encrypt` CLI behavior)
+- [ ] Backup with "Encrypt" checked but no password shows an error and does not touch the device
+- [ ] Restore "connected device's own latest backup" succeeds and a fresh backup afterward matches what was restored
+- [ ] Restore "latest backup for node id" and restore "specific backup file" both succeed for the right target
+- [ ] Restoring an encrypted backup with no password shows an "enter the password" prompt without touching the device; a wrong password shows "Incorrect password" and lets you retry; the correct password restores successfully
+- [ ] "List backups for connected device" matches `mesh-device-backups` output
+- [ ] Export channels (plain and encrypted) writes a channel set visible in "Saved channel sets" after refreshing
+- [ ] Import channels (plain) applies successfully; an encrypted set follows the same needs-password / wrong-password / correct-password flow as restore
+- [ ] Closing the terminal (Ctrl+C) running `mesh-gui` stops the server -- the page stops responding
 
 ## General
 

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "cryptography>=49.0.0",
+    "flask>=3.0.0",
     "meshtastic>=2.7.9",
 ]
 
@@ -20,6 +21,7 @@ mesh-device-backups = "meshprogrammer.cli:device_backups_entry_point"
 mesh-list-channels = "meshprogrammer.cli:list_channels_entry_point"
 mesh-export-channels = "meshprogrammer.cli:export_channels_entry_point"
 mesh-import-channels = "meshprogrammer.cli:import_channels_entry_point"
+mesh-gui = "meshprogrammer.cli:gui_entry_point"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,0 +1,39 @@
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+h1 {
+  margin-bottom: 0;
+}
+
+.subtitle {
+  color: #555;
+  margin-top: 0.25rem;
+}
+
+section {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+fieldset.connection {
+  margin: 0.5rem 0;
+}
+
+.result {
+  font-family: ui-monospace, monospace;
+  white-space: pre-wrap;
+}
+
+.result-ok {
+  color: #1a7f37;
+}
+
+.result-error {
+  color: #b32424;
+}

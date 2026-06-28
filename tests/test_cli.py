@@ -584,6 +584,100 @@ def test_build_parser_accepts_help_command() -> None:
     assert args.command == "help"
 
 
+def test_build_parser_gui_http_port_defaults_to_none() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["gui"])
+
+    assert args.command == "gui"
+    assert args.http_port is None
+    assert args.working_dir == storage.DEFAULT_WORKING_DIR
+
+
+def test_build_parser_gui_parses_http_port() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["gui", "--http-port", "8765"])
+
+    assert args.http_port == 8765
+
+
+class _FakeWsgiServer:
+    def __init__(self, host: str, port: int, app: object) -> None:
+        self.host = host
+        self.requested_port = port
+        self.app = app
+        self.server_port = port or 54321
+        self.served = False
+
+    def serve_forever(self) -> None:
+        self.served = True
+
+
+def test_run_gui_binds_localhost_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake_servers: list[_FakeWsgiServer] = []
+
+    def _fake_make_server(host: str, port: int, app: object) -> _FakeWsgiServer:
+        server = _FakeWsgiServer(host, port, app)
+        fake_servers.append(server)
+        return server
+
+    monkeypatch.setattr(cli, "make_server", _fake_make_server)
+    monkeypatch.setattr(cli.webbrowser, "open", lambda _url: None)
+
+    result = cli.run_gui(tmp_path, http_port=None, open_browser=False)
+
+    assert result == 0
+    [server] = fake_servers
+    assert server.host == "127.0.0.1"
+    assert server.requested_port == 0
+    assert server.served is True
+
+
+def test_run_gui_uses_given_http_port(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_servers: list[_FakeWsgiServer] = []
+    monkeypatch.setattr(
+        cli, "make_server", lambda host, port, app: fake_servers.append(_FakeWsgiServer(host, port, app)) or fake_servers[-1]
+    )
+
+    cli.run_gui(tmp_path, http_port=8765, open_browser=False)
+
+    assert fake_servers[0].requested_port == 8765
+
+
+def test_run_gui_opens_browser_with_bound_port(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        cli, "make_server", lambda host, port, app: _FakeWsgiServer(host, port, app)
+    )
+    opened: list[str] = []
+    monkeypatch.setattr(cli.webbrowser, "open", lambda url: opened.append(url))
+
+    cli.run_gui(tmp_path, http_port=8765, open_browser=True)
+
+    assert opened == ["http://127.0.0.1:8765/"]
+
+
+def test_run_gui_skips_browser_when_open_browser_false(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        cli, "make_server", lambda host, port, app: _FakeWsgiServer(host, port, app)
+    )
+    monkeypatch.setattr(
+        cli.webbrowser, "open", lambda _url: (_ for _ in ()).throw(AssertionError("opened browser"))
+    )
+
+    result = cli.run_gui(tmp_path, http_port=8765, open_browser=False)
+
+    assert result == 0
+
+
 def test_run_help_lists_every_command(capsys: pytest.CaptureFixture[str]) -> None:
     result = cli.run_help()
     out = capsys.readouterr().out

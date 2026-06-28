@@ -1,6 +1,6 @@
 # meshprogrammer
 
-A CLI for backing up and restoring [Meshtastic](https://meshtastic.org/) device configs over USB serial or Bluetooth (BLE).
+A CLI (and local web GUI) for backing up and restoring [Meshtastic](https://meshtastic.org/) device configs over USB serial or Bluetooth (BLE).
 
 Backups are stored under a `working/` folder in the repo root, one subfolder per device named by the device's own node id (e.g. `!a1b2c3d4`), with one timestamped JSON file per backup: `backup-<timestamp>.json`, or `encryptedbackup-<timestamp>.json` if it was saved with `--encrypt`. Shared channel sets (see `export-channels`/`import-channels` below) live under `working/channels/`, one named file each. `working/` is gitignored because backups and channel sets can contain device private/admin keys and channel encryption keys.
 
@@ -170,6 +170,23 @@ uv run mesh-import-channels --port COM5 office
 uv run mesh-import-channels office --ble
 ```
 
+### `gui` / `mesh-gui`
+
+Start a local web GUI covering all the commands above, in your browser, instead of using the terminal.
+
+```
+uv run meshprogrammer gui
+uv run mesh-gui
+```
+
+This prints a `http://127.0.0.1:<port>/` URL and opens it in your default browser automatically. The server only binds to `127.0.0.1` (localhost) -- it's never reachable from other devices on your network. By default an OS-assigned free port is used (a fresh one each run); pass `--http-port` to pin a specific one:
+
+```
+uv run mesh-gui --http-port 8765
+```
+
+`--working-dir` works the same as it does for the other commands (see [`--working-dir`](#--working-dir) below), but note that `gui` doesn't take `--port`/`--ble` -- device connection (serial port or BLE) is chosen per-action inside the browser UI instead.
+
 ### Encrypting backups and channel sets
 
 `backup` and `export-channels` accept `--encrypt` to password-protect the saved file. You'll be prompted for the password (and asked to confirm it) interactively -- it's never passed on the command line, so it won't end up in shell history. `restore` and `import-channels` automatically detect an encrypted file and prompt for its password before decrypting and applying it.
@@ -206,7 +223,7 @@ uv run mesh-export-channels --ble=mydevice office
 
 ### `--working-dir`
 
-`backup`, `restore`, `list`, `device-backups`, `list-channels`, `export-channels`, and `import-channels` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
+`backup`, `restore`, `list`, `device-backups`, `list-channels`, `export-channels`, `import-channels`, and `gui` (and their `mesh-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. `scan` doesn't take it, since it doesn't touch the working dir.
 
 ```
 uv run meshprogrammer list --working-dir /path/to/backups
@@ -220,4 +237,4 @@ uv run pytest
 uv run pyright meshprogrammer main.py
 ```
 
-`meshprogrammer/device.py` talks directly to real hardware over serial or BLE and has no automated tests -- everything else (`storage.py`, `backup.py`, `crypto.py`, `cli.py`) is covered by unit tests. See [TESTING.md](TESTING.md) for the manual checklist to run against a real device whenever device-facing behavior changes.
+`meshprogrammer/device.py` talks directly to real hardware over serial or BLE and has no automated tests -- everything else (`storage.py`, `backup.py`, `crypto.py`, `connection.py`, `cli.py`, `web/app.py`) is covered by unit tests. See [TESTING.md](TESTING.md) for the manual checklist to run against a real device whenever device-facing behavior changes.

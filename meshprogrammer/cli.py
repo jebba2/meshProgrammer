@@ -3,14 +3,17 @@
 import argparse
 import getpass
 import sys
+import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from meshtastic.mesh_interface import MeshInterface
+from werkzeug.serving import make_server
 
 from meshprogrammer import backup as backup_module
-from meshprogrammer import crypto, device, storage
+from meshprogrammer import connection, crypto, device, storage
+from meshprogrammer.web import create_app
 
 
 def _add_working_dir_arg(parser: argparse.ArgumentParser) -> None:
@@ -128,6 +131,15 @@ def build_parser() -> argparse.ArgumentParser:
     _add_connection_args(import_channels_parser)
     import_channels_parser.add_argument("name", help="Name of the saved channel set to apply")
 
+    gui_parser = subparsers.add_parser("gui", help="Start the local web GUI in your browser")
+    _add_working_dir_arg(gui_parser)
+    gui_parser.add_argument(
+        "--http-port",
+        type=int,
+        default=None,
+        help="Port for the local web server (default: an OS-assigned free port)",
+    )
+
     return parser
 
 
@@ -181,16 +193,12 @@ def _resolve_port(port: str | None) -> str | None:
     connected. Returns None (after printing an error) if there's none or
     more than one and the caller didn't say which to use.
     """
-    if port is not None:
-        return port
-    ports = device.scan_ports()
-    if len(ports) == 1:
-        return ports[0]
-    if not ports:
-        print("No Meshtastic devices detected. Specify --port.")
+    try:
+        return connection.resolve_port(port)
+    except connection.PortResolutionError as exc:
+        suffix = " Specify --port." if not exc.ports else " Specify --port to choose one."
+        print(str(exc) + suffix)
         return None
-    print(f"Multiple devices detected ({', '.join(ports)}). Specify --port to choose one.")
-    return None
 
 
 def _connection_label(port: str | None, ble: str | None) -> str:
@@ -368,6 +376,28 @@ def run_import_channels(working_dir: Path, port: str | None, ble: str | None, na
     return 0
 
 
+def run_gui(working_dir: Path, http_port: int | None, open_browser: bool = True) -> int:
+    """Start the local web GUI and open it in the default browser.
+
+    Binds to 127.0.0.1 only -- this serves real hardware control and
+    filesystem actions, never reachable from the LAN. If ``http_port``
+    isn't given, the OS assigns a free ephemeral port. ``make_server``
+    binds and starts listening before returning, so opening the browser
+    right after is safe -- no guessed delay needed.
+    """
+    app = create_app(working_dir)
+    server = make_server("127.0.0.1", http_port or 0, app)
+    url = f"http://127.0.0.1:{server.server_port}/"
+    print(f"meshprogrammer GUI running at {url} (Ctrl+C to stop)")
+    if open_browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -390,6 +420,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_export_channels(args.working_dir, args.port, args.ble, args.name, args.encrypt)
     if args.command == "import-channels":
         return run_import_channels(args.working_dir, args.port, args.ble, args.name)
+    if args.command == "gui":
+        return run_gui(args.working_dir, args.http_port)
 
     parser.error(f"Unknown command: {args.command}")
     return 1
@@ -444,6 +476,11 @@ def export_channels_entry_point(argv: list[str] | None = None) -> int:
 def import_channels_entry_point(argv: list[str] | None = None) -> int:
     """Console-script shortcut for ``meshprogrammer import-channels``."""
     return _run_subcommand("import-channels", argv)
+
+
+def gui_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshprogrammer gui``."""
+    return _run_subcommand("gui", argv)
 
 
 if __name__ == "__main__":

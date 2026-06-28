@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>meshprogrammer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <h1>meshprogrammer</h1>
+  <p class="subtitle">Backup and restore Meshtastic device configs over USB serial or Bluetooth.</p>
+
+  <section id="dashboard">
+    <h2>Known devices and backups</h2>
+    <button type="button" data-refresh="devices">Refresh</button>
+    <ul id="device-list"></ul>
+
+    <h2>Saved channel sets</h2>
+    <button type="button" data-refresh="channels">Refresh</button>
+    <ul id="channel-list"></ul>
+  </section>
+
+  <template id="connection-fields-template">
+    <fieldset class="connection">
+      <legend>Device connection</legend>
+      <label><input type="radio" name="connectionType" value="port" checked> Serial port</label>
+      <input type="text" name="port" placeholder="e.g. COM3 (blank = auto-detect)">
+      <button type="button" data-scan="port">Scan serial ports</button>
+      <select data-scan-results="port"></select>
+      <br>
+      <label><input type="radio" name="connectionType" value="ble"> Bluetooth (BLE)</label>
+      <input type="text" name="ble" placeholder="device name (blank = the only nearby one)">
+      <button type="button" data-scan="ble">Scan BLE (~10s)</button>
+      <select data-scan-results="ble"></select>
+    </fieldset>
+  </template>
+
+  <section id="backup-section">
+    <h2>Backup</h2>
+    <form id="backup-form" data-connection></form>
+    <label><input type="checkbox" form="backup-form" name="encrypt"> Encrypt</label>
+    <input type="password" form="backup-form" name="password" placeholder="password">
+    <button type="submit" form="backup-form">Back up device</button>
+    <p class="result" id="backup-result"></p>
+  </section>
+
+  <section id="restore-section">
+    <h2>Restore</h2>
+    <form id="restore-form" data-connection></form>
+    <fieldset>
+      <legend>What to restore</legend>
+      <label><input type="radio" name="restoreMode" value="own" checked> Connected device's own latest backup</label><br>
+      <label><input type="radio" name="restoreMode" value="node"> Latest backup for node id</label>
+      <input type="text" form="restore-form" name="node_id" placeholder="!a1b2c3d4"><br>
+      <label><input type="radio" name="restoreMode" value="file"> Specific backup file</label>
+      <input type="text" form="restore-form" name="node_id_for_file" placeholder="!a1b2c3d4">
+      <input type="text" form="restore-form" name="filename" placeholder="backup-...json">
+    </fieldset>
+    <input type="password" form="restore-form" name="password" placeholder="password (if encrypted)">
+    <button type="submit" form="restore-form">Restore</button>
+    <p class="result" id="restore-result"></p>
+  </section>
+
+  <section id="device-backups-section">
+    <h2>Connected device's backups</h2>
+    <form id="device-backups-form" data-connection></form>
+    <button type="submit" form="device-backups-form">List backups for connected device</button>
+    <p class="result" id="device-backups-result"></p>
+  </section>
+
+  <section id="export-channels-section">
+    <h2>Export channels</h2>
+    <form id="export-channels-form" data-connection></form>
+    <input type="text" form="export-channels-form" name="name" placeholder="name to save as" required>
+    <label><input type="checkbox" form="export-channels-form" name="encrypt"> Encrypt</label>
+    <input type="password" form="export-channels-form" name="password" placeholder="password">
+    <button type="submit" form="export-channels-form">Export channels</button>
+    <p class="result" id="export-channels-result"></p>
+  </section>
+
+  <section id="import-channels-section">
+    <h2>Import channels</h2>
+    <form id="import-channels-form" data-connection></form>
+    <input type="text" form="import-channels-form" name="name" placeholder="saved channel set name" required>
+    <input type="password" form="import-channels-form" name="password" placeholder="password (if encrypted)">
+    <button type="submit" form="import-channels-form">Import channels</button>
+    <p class="result" id="import-channels-result"></p>
+  </section>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
