@@ -26,6 +26,29 @@ function renderResult(el, data) {
   }
 }
 
+function renderDeviceBackups(el, data) {
+  el.innerHTML = "";
+  el.classList.remove("result-ok", "result-error");
+  if (!data.ok) {
+    el.classList.add("result-error");
+    const retryHint = data.needs_password ? " Enter the password above and try again." : "";
+    el.textContent = "Error: " + data.error + retryHint;
+    return;
+  }
+  el.classList.add("result-ok");
+  const suffix = data.backups.length === 1 ? "" : "s";
+  const heading = document.createElement("p");
+  heading.textContent = `${data.node_id} (${data.backups.length} backup${suffix})`;
+  el.appendChild(heading);
+  const list = document.createElement("ul");
+  for (const name of data.backups) {
+    const li = document.createElement("li");
+    li.textContent = name;
+    list.appendChild(li);
+  }
+  el.appendChild(list);
+}
+
 function getConnection(form) {
   const type = form.elements.connectionType.value;
   if (type === "ble") {
@@ -147,7 +170,7 @@ function wireDeviceBackupsForm() {
   document.getElementById("device-backups-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = await postJSON("/api/device-backups", getConnection(event.target));
-    renderResult(document.getElementById("device-backups-result"), data);
+    renderDeviceBackups(document.getElementById("device-backups-result"), data);
   });
 }
 
