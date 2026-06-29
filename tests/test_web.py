@@ -317,6 +317,34 @@ def test_device_backups_returns_empty_list_when_none(
     assert response.get_json() == {"ok": True, "node_id": "!a1b2c3d4", "backups": []}
 
 
+def test_delete_backup_removes_the_file(client: FlaskClient, tmp_path: Path) -> None:
+    path = storage.write_backup(
+        tmp_path, "!a1b2c3d4", {"node_id": "!a1b2c3d4"}, datetime(2026, 1, 1, tzinfo=timezone.utc)
+    )
+
+    response = client.post("/api/delete-backup", json={"node_id": "!a1b2c3d4", "filename": path.name})
+
+    assert response.get_json() == {"ok": True}
+    assert not path.exists()
+
+
+def test_delete_backup_returns_error_for_unknown_filename(client: FlaskClient) -> None:
+    response = client.post(
+        "/api/delete-backup", json={"node_id": "!a1b2c3d4", "filename": "backup-20000101T000000Z.json"}
+    )
+    data = response.get_json()
+
+    assert data["ok"] is False
+    assert "!a1b2c3d4" in data["error"]
+
+
+def test_delete_backup_requires_node_id_and_filename(client: FlaskClient) -> None:
+    response = client.post("/api/delete-backup", json={})
+    data = response.get_json()
+
+    assert data["ok"] is False
+
+
 def test_export_channels_writes_plain_channel_set(
     client: FlaskClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -422,6 +450,30 @@ def test_import_channels_correct_password_succeeds(
     )
 
     assert response.get_json()["ok"] is True
+
+
+def test_delete_channels_removes_the_file(client: FlaskClient, tmp_path: Path) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "https://x"})
+
+    response = client.post("/api/delete-channels", json={"name": "office"})
+
+    assert response.get_json() == {"ok": True}
+    assert storage.list_channel_names(tmp_path) == []
+
+
+def test_delete_channels_returns_error_for_unknown_name(client: FlaskClient) -> None:
+    response = client.post("/api/delete-channels", json={"name": "missing"})
+    data = response.get_json()
+
+    assert data["ok"] is False
+    assert "missing" in data["error"]
+
+
+def test_delete_channels_requires_name(client: FlaskClient) -> None:
+    response = client.post("/api/delete-channels", json={})
+    data = response.get_json()
+
+    assert data["ok"] is False
 
 
 def test_post_rejected_with_foreign_origin(client: FlaskClient) -> None:

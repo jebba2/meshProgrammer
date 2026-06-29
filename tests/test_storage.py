@@ -154,3 +154,65 @@ def test_list_channel_names_returns_sorted_names(tmp_path: Path) -> None:
 
 def test_list_channel_names_on_missing_channels_dir_returns_empty(tmp_path: Path) -> None:
     assert storage.list_channel_names(tmp_path) == []
+
+
+def test_delete_backup_removes_the_file(tmp_path: Path) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    written = storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 1}, timestamp)
+
+    storage.delete_backup(tmp_path, "!a1b2c3d4", written.name)
+
+    assert not written.exists()
+
+
+def test_delete_backup_leaves_other_backups_for_the_same_device(tmp_path: Path) -> None:
+    older = datetime(2026, 6, 24, 10, 0, 0, tzinfo=timezone.utc)
+    newer = datetime(2026, 6, 24, 12, 0, 0, tzinfo=timezone.utc)
+    older_path = storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 1}, older)
+    newer_path = storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 2}, newer)
+
+    storage.delete_backup(tmp_path, "!a1b2c3d4", older_path.name)
+
+    assert not older_path.exists()
+    assert newer_path.exists()
+
+
+def test_delete_backup_for_unknown_filename_raises_file_not_found(tmp_path: Path) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 1}, timestamp)
+
+    with pytest.raises(FileNotFoundError):
+        storage.delete_backup(tmp_path, "!a1b2c3d4", "backup-20000101T000000Z.json")
+
+
+def test_delete_backup_does_not_delete_another_devices_backup(tmp_path: Path) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    other_path = storage.write_backup(tmp_path, "!other00", {"v": 1}, timestamp)
+
+    with pytest.raises(FileNotFoundError):
+        storage.delete_backup(tmp_path, "!a1b2c3d4", other_path.name)
+
+    assert other_path.exists()
+
+
+def test_delete_backup_rejects_path_traversal_in_filename(tmp_path: Path) -> None:
+    outside_file = tmp_path / "secret.txt"
+    outside_file.write_text("do not delete me")
+
+    with pytest.raises(FileNotFoundError):
+        storage.delete_backup(tmp_path, "!a1b2c3d4", "../secret.txt")
+
+    assert outside_file.exists()
+
+
+def test_delete_channels_removes_the_file(tmp_path: Path) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "https://example"})
+
+    storage.delete_channels(tmp_path, "office")
+
+    assert storage.list_channel_names(tmp_path) == []
+
+
+def test_delete_channels_for_unknown_name_raises_file_not_found(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        storage.delete_channels(tmp_path, "missing")

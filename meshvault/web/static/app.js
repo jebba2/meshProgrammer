@@ -102,6 +102,24 @@ function injectConnectionFields() {
   });
 }
 
+function makeDeleteButton(onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Delete";
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+async function deleteBackup(nodeId, filename) {
+  if (!confirm(`Delete backup '${filename}' for ${nodeId}? This cannot be undone.`)) return;
+  const data = await postJSON("/api/delete-backup", { node_id: nodeId, filename });
+  if (!data.ok) {
+    alert("Error: " + data.error);
+    return;
+  }
+  refreshDevices();
+}
+
 function renderDeviceList(listEl, devices) {
   listEl.innerHTML = "";
   for (const deviceEntry of devices) {
@@ -114,7 +132,8 @@ function renderDeviceList(listEl, devices) {
     const backupList = document.createElement("ul");
     for (const filename of deviceEntry.backups) {
       const backupLi = document.createElement("li");
-      backupLi.textContent = filename;
+      backupLi.append(filename + " ");
+      backupLi.appendChild(makeDeleteButton(() => deleteBackup(deviceEntry.node_id, filename)));
       backupList.appendChild(backupLi);
     }
     li.appendChild(backupList);
@@ -129,11 +148,22 @@ async function refreshDevices() {
   renderDeviceList(document.getElementById("restore-device-list"), data.devices);
 }
 
+async function deleteChannelSet(name) {
+  if (!confirm(`Delete saved channel set '${name}'? This cannot be undone.`)) return;
+  const data = await postJSON("/api/delete-channels", { name });
+  if (!data.ok) {
+    alert("Error: " + data.error);
+    return;
+  }
+  refreshChannels();
+}
+
 function renderChannelSetList(listEl, channelSets) {
   listEl.innerHTML = "";
   for (const channelSet of channelSets) {
     const li = document.createElement("li");
-    li.textContent = channelSet.name + (channelSet.encrypted ? " (encrypted)" : "");
+    li.append(channelSet.name + (channelSet.encrypted ? " (encrypted) " : " "));
+    li.appendChild(makeDeleteButton(() => deleteChannelSet(channelSet.name)));
     listEl.appendChild(li);
   }
 }

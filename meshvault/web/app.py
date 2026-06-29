@@ -204,6 +204,20 @@ def create_app(working_dir: Path) -> Flask:
         backups = storage.list_backups(working_dir, node_id)
         return _ok(node_id=node_id, backups=[p.name for p in backups])
 
+    @app.route("/api/delete-backup", methods=["POST"])
+    def delete_backup_route():
+        body = request.get_json() or {}
+        node_id: str | None = body.get("node_id")
+        filename: str | None = body.get("filename")
+
+        if not node_id or not filename:
+            return _error("node_id and filename are required.")
+        try:
+            storage.delete_backup(working_dir, node_id, filename)
+        except FileNotFoundError:
+            return _error(f"No such backup '{filename}' for {node_id}.")
+        return _ok()
+
     @app.route("/api/export-channels", methods=["POST"])
     def export_channels():
         body = request.get_json() or {}
@@ -260,6 +274,19 @@ def create_app(working_dir: Path) -> Flask:
 
         with device.open_device(port, ble) as interface:
             device.import_channel_url(interface, decrypted["channel_url"])
+        return _ok()
+
+    @app.route("/api/delete-channels", methods=["POST"])
+    def delete_channels_route():
+        body = request.get_json() or {}
+        name: str | None = body.get("name")
+
+        if not name:
+            return _error("A name is required.")
+        try:
+            storage.delete_channels(working_dir, name)
+        except FileNotFoundError:
+            return _error(f"No saved channel set named '{name}'.")
         return _ok()
 
     return app

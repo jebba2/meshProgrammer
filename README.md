@@ -134,6 +134,15 @@ uv run meshvault-device-backups --port COM5
 uv run meshvault-device-backups
 ```
 
+### `delete-backup` / `meshvault-delete-backup`
+
+Delete one saved backup file. Doesn't need a device connected -- it just removes the file from `working/<node-id>/`.
+
+```
+uv run meshvault delete-backup "!a1b2c3d4" backup-20260624T153000Z.json
+uv run meshvault-delete-backup "!a1b2c3d4" backup-20260624T153000Z.json
+```
+
 ### `list-channels` / `meshvault-list-channels`
 
 List known channel sets saved with `export-channels`, marking which ones are encrypted. Doesn't need a device connected -- it just browses `working/channels/`.
@@ -168,6 +177,15 @@ uv run meshvault-import-channels --port COM5 office
 
 # Connect over BLE instead of serial
 uv run meshvault-import-channels office --ble
+```
+
+### `delete-channels` / `meshvault-delete-channels`
+
+Delete a saved channel set. Doesn't need a device connected -- it just removes the file from `working/channels/`.
+
+```
+uv run meshvault delete-channels office
+uv run meshvault-delete-channels office
 ```
 
 ### `gui` / `meshvault-gui`
@@ -245,7 +263,7 @@ uv run meshvault-export-channels --ble=mydevice office
 
 ### `--working-dir`
 
-`backup`, `restore`, `list`, `device-backups`, `list-channels`, `export-channels`, `import-channels`, `gui`, and `meshtastic-web` (and their `meshvault-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. For `meshtastic-web` this only changes where the downloaded client is cached (under `<dir>/.meshtastic-web-client/`), not any backup/channel data. `scan` doesn't take it, since it doesn't touch the working dir.
+`backup`, `restore`, `list`, `device-backups`, `delete-backup`, `list-channels`, `export-channels`, `import-channels`, `delete-channels`, `gui`, and `meshtastic-web` (and their `meshvault-*` shortcuts) accept `--working-dir` after the command/subcommand to use a folder other than `working/`. For `meshtastic-web` this only changes where the downloaded client is cached (under `<dir>/.meshtastic-web-client/`), not any backup/channel data. `scan` doesn't take it, since it doesn't touch the working dir.
 
 ```
 uv run meshvault list --working-dir /path/to/backups

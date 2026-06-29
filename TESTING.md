@@ -14,7 +14,7 @@ All commands below need the `uv run` prefix shown (e.g. `uv run meshvault-scan`,
 
 ## help / meshvault-help
 
-- [ ] `uv run meshvault help` lists every command (help, scan, backup, restore, list, device-backups, list-channels, export-channels, import-channels, gui, meshtastic-web) with a one-line description
+- [ ] `uv run meshvault help` lists every command (help, scan, backup, restore, list, device-backups, delete-backup, list-channels, export-channels, import-channels, delete-channels, gui, meshtastic-web) with a one-line description
 - [ ] `uv run meshvault-help` produces the same output
 - [ ] Output matches `uv run meshvault --help`
 - [ ] Output mentions `--port`, `--ble`, and `--encrypt` and which commands accept them
@@ -86,6 +86,14 @@ All commands below need the `uv run` prefix shown (e.g. `uv run meshvault-scan`,
 - [ ] With no device connected, prints "No Meshtastic devices detected. Specify --port." and exits non-zero
 - [ ] (If you have a second device) with two devices connected and no `--port`, prints "Multiple devices detected (...). Specify --port to choose one." and exits non-zero
 
+## delete-backup / meshvault-delete-backup
+
+- [ ] `uv run meshvault-delete-backup <node-id> <filename>` removes that backup file from `working/<node-id>/`
+- [ ] `uv run meshvault delete-backup <node-id> <filename>` produces the same result
+- [ ] Deleting an unknown filename prints "No such backup ..." and exits non-zero, without touching other files
+- [ ] `uv run meshvault-delete-backup <node-id> <filename> --working-dir <DIR>` deletes from that folder instead of `working/`
+- [ ] Doesn't require a device connected
+
 ## list-channels / meshvault-list-channels
 
 - [ ] `uv run meshvault-list-channels` with no saved channel sets prints "No channel sets found in working/channels"
@@ -126,6 +134,14 @@ All commands below need the `uv run` prefix shown (e.g. `uv run meshvault-scan`,
 - [ ] The correct password decrypts and applies successfully
 - [ ] A wrong password prints "Incorrect password." and exits non-zero, device untouched
 
+## delete-channels / meshvault-delete-channels
+
+- [ ] `uv run meshvault-delete-channels <name>` removes that channel set's file from `working/channels/`
+- [ ] `uv run meshvault delete-channels <name>` produces the same result
+- [ ] Deleting an unknown name prints "No saved channel set named '<name>' ..." and exits non-zero
+- [ ] `uv run meshvault-delete-channels <name> --working-dir <DIR>` deletes from that folder instead of `working/`
+- [ ] Doesn't require a device connected
+
 ## --port auto-detection edge cases
 
 - [ ] With no device connected, `uv run meshvault-backup` (no `--port`) prints "No Meshtastic devices detected. Specify --port." and exits non-zero
@@ -145,7 +161,7 @@ All commands below need the `uv run` prefix shown (e.g. `uv run meshvault-scan`,
 
 ## gui / meshvault-gui
 
-The GUI covers all 8 device/storage commands above through a browser instead of the terminal -- run through each action below at least once against real hardware.
+The GUI covers all 10 device/storage commands above through a browser instead of the terminal -- run through each action below at least once against real hardware.
 
 - [ ] `uv run meshvault-gui` prints a `http://127.0.0.1:<port>/` URL and opens it in the default browser automatically
 - [ ] `uv run meshvault gui` produces the same result
@@ -167,6 +183,9 @@ The GUI covers all 8 device/storage commands above through a browser instead of 
 - [ ] "List backups for connected device" matches `meshvault-device-backups` output
 - [ ] Export channels (plain and encrypted) writes a channel set visible in "Saved channel sets" after refreshing
 - [ ] Import channels (plain) applies successfully; an encrypted set follows the same needs-password / wrong-password / correct-password flow as restore
+- [ ] Each backup filename listed (in "Known devices and backups" and the restore section) has a "Delete" button; clicking it asks for confirmation, and confirming removes just that file and refreshes both lists
+- [ ] Each saved channel set listed (in "Saved channel sets" and the import section) has a "Delete" button; clicking it asks for confirmation, and confirming removes just that set and refreshes both lists
+- [ ] Cancelling the delete confirmation dialog leaves the file/channel set untouched
 - [ ] Closing the terminal (Ctrl+C) running `meshvault-gui` stops the server -- the page stops responding
 
 ## meshtastic-web / meshvault-meshtastic-web

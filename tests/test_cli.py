@@ -209,6 +209,51 @@ def test_run_list_prints_devices_and_backup_counts(
     assert "backup-20260624T153000Z.json" in out
 
 
+def test_build_parser_delete_backup_accepts_working_dir() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(
+        ["delete-backup", "--working-dir", "/tmp/foo", "!a1b2c3d4", "backup-20260624T153000Z.json"]
+    )
+
+    assert args.command == "delete-backup"
+    assert args.working_dir == Path("/tmp/foo")
+    assert args.node_id == "!a1b2c3d4"
+    assert args.filename == "backup-20260624T153000Z.json"
+
+
+def test_run_delete_backup_removes_the_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    written = storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 1}, timestamp)
+
+    result = cli.run_delete_backup(tmp_path, "!a1b2c3d4", written.name)
+
+    assert result == 0
+    assert not written.exists()
+    assert "Deleted" in capsys.readouterr().out
+
+
+def test_run_delete_backup_reports_missing_backup(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = cli.run_delete_backup(tmp_path, "!a1b2c3d4", "backup-20000101T000000Z.json")
+
+    assert result == 1
+    assert "No such backup" in capsys.readouterr().out
+
+
+def test_delete_backup_entry_point_accepts_working_dir(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    timestamp = datetime(2026, 6, 24, 15, 30, 0, tzinfo=timezone.utc)
+    written = storage.write_backup(tmp_path, "!a1b2c3d4", {"v": 1}, timestamp)
+
+    result = cli.delete_backup_entry_point(["--working-dir", str(tmp_path), "!a1b2c3d4", written.name])
+
+    assert result == 0
+    assert not written.exists()
+
+
 def test_build_parser_export_channels_port_defaults_to_none() -> None:
     parser = cli.build_parser()
 
@@ -845,8 +890,10 @@ def test_run_help_lists_every_command(capsys: pytest.CaptureFixture[str]) -> Non
         "restore",
         "list",
         "device-backups",
+        "delete-backup",
         "export-channels",
         "import-channels",
+        "delete-channels",
         "help",
     ]:
         assert command in out
@@ -918,6 +965,48 @@ def test_list_channels_entry_point_accepts_working_dir(
 
     assert result == 0
     assert "No channel sets found" in capsys.readouterr().out
+
+
+def test_build_parser_delete_channels_accepts_working_dir() -> None:
+    parser = cli.build_parser()
+
+    args = parser.parse_args(["delete-channels", "--working-dir", "/tmp/foo", "office"])
+
+    assert args.command == "delete-channels"
+    assert args.working_dir == Path("/tmp/foo")
+    assert args.name == "office"
+
+
+def test_run_delete_channels_removes_the_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "https://example"})
+
+    result = cli.run_delete_channels(tmp_path, "office")
+
+    assert result == 0
+    assert storage.list_channel_names(tmp_path) == []
+    assert "Deleted" in capsys.readouterr().out
+
+
+def test_run_delete_channels_reports_missing_channel_set(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = cli.run_delete_channels(tmp_path, "missing")
+
+    assert result == 1
+    assert "No saved channel set named 'missing'" in capsys.readouterr().out
+
+
+def test_delete_channels_entry_point_accepts_working_dir(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    storage.write_channels(tmp_path, "office", {"channel_url": "https://example"})
+
+    result = cli.delete_channels_entry_point(["--working-dir", str(tmp_path), "office"])
+
+    assert result == 0
+    assert storage.list_channel_names(tmp_path) == []
 
 
 def test_run_help_mentions_ble_option(capsys: pytest.CaptureFixture[str]) -> None:

@@ -98,6 +98,20 @@ def latest_backup(working_dir: Path, node_id: str) -> Path | None:
     return backups[0] if backups else None
 
 
+def delete_backup(working_dir: Path, node_id: str, filename: str) -> None:
+    """Delete one backup file for ``node_id`` by filename.
+
+    Matches against ``list_backups`` rather than joining ``filename`` onto
+    the device folder directly, so a path-traversal filename can't escape it.
+    Raises FileNotFoundError if no backup with that exact filename exists.
+    """
+    for backup_file in list_backups(working_dir, node_id):
+        if backup_file.name == filename:
+            backup_file.unlink()
+            return
+    raise FileNotFoundError(filename)
+
+
 def channels_path(working_dir: Path, name: str) -> Path:
     """Return the path a saved channel set named ``name`` would be written to."""
     return working_dir / "channels" / f"{name}.json"
@@ -127,3 +141,11 @@ def list_channel_names(working_dir: Path) -> list[str]:
     if not folder.is_dir():
         return []
     return sorted(p.stem for p in folder.glob("*.json"))
+
+
+def delete_channels(working_dir: Path, name: str) -> None:
+    """Delete the saved channel set named ``name``.
+
+    Raises FileNotFoundError if no such channel set exists.
+    """
+    channels_path(working_dir, name).unlink()

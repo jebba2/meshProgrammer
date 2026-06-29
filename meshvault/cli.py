@@ -107,6 +107,15 @@ def build_parser() -> argparse.ArgumentParser:
     _add_working_dir_arg(device_backups_parser)
     _add_connection_args(device_backups_parser)
 
+    delete_backup_parser = subparsers.add_parser(
+        "delete-backup", help="Delete a saved backup file"
+    )
+    _add_working_dir_arg(delete_backup_parser)
+    delete_backup_parser.add_argument(
+        "node_id", help="Device node id the backup belongs to, e.g. !a1b2c3d4"
+    )
+    delete_backup_parser.add_argument("filename", help="Backup filename to delete, e.g. backup-...json")
+
     list_channels_parser = subparsers.add_parser(
         "list-channels", help="List known channel sets saved with export-channels"
     )
@@ -131,6 +140,12 @@ def build_parser() -> argparse.ArgumentParser:
     _add_working_dir_arg(import_channels_parser)
     _add_connection_args(import_channels_parser)
     import_channels_parser.add_argument("name", help="Name of the saved channel set to apply")
+
+    delete_channels_parser = subparsers.add_parser(
+        "delete-channels", help="Delete a saved channel set"
+    )
+    _add_working_dir_arg(delete_channels_parser)
+    delete_channels_parser.add_argument("name", help="Name of the saved channel set to delete")
 
     gui_parser = subparsers.add_parser("gui", help="Start the local web GUI in your browser")
     _add_working_dir_arg(gui_parser)
@@ -335,6 +350,17 @@ def run_device_backups(working_dir: Path, port: str | None, ble: str | None) -> 
     return 0
 
 
+def run_delete_backup(working_dir: Path, node_id: str, filename: str) -> int:
+    """Delete a saved backup file for ``node_id``."""
+    try:
+        storage.delete_backup(working_dir, node_id, filename)
+    except FileNotFoundError:
+        print(f"No such backup '{filename}' for {node_id} in {working_dir}")
+        return 1
+    print(f"Deleted {filename} for {node_id}")
+    return 0
+
+
 def run_list_channels(working_dir: Path) -> int:
     """Print known channel set names, marking which ones are encrypted."""
     names = storage.list_channel_names(working_dir)
@@ -391,6 +417,17 @@ def run_import_channels(working_dir: Path, port: str | None, ble: str | None, na
     with device.open_device(port, ble) as interface:
         device.import_channel_url(interface, data["channel_url"])
     print(f"Applied channel set '{name}' to device on {_connection_label(port, ble)}")
+    return 0
+
+
+def run_delete_channels(working_dir: Path, name: str) -> int:
+    """Delete a saved channel set."""
+    try:
+        storage.delete_channels(working_dir, name)
+    except FileNotFoundError:
+        print(f"No saved channel set named '{name}' in {working_dir}")
+        return 1
+    print(f"Deleted channel set '{name}'")
     return 0
 
 
@@ -494,12 +531,16 @@ def main(argv: list[str] | None = None) -> int:
         return run_list(args.working_dir)
     if args.command == "device-backups":
         return run_device_backups(args.working_dir, args.port, args.ble)
+    if args.command == "delete-backup":
+        return run_delete_backup(args.working_dir, args.node_id, args.filename)
     if args.command == "list-channels":
         return run_list_channels(args.working_dir)
     if args.command == "export-channels":
         return run_export_channels(args.working_dir, args.port, args.ble, args.name, args.encrypt)
     if args.command == "import-channels":
         return run_import_channels(args.working_dir, args.port, args.ble, args.name)
+    if args.command == "delete-channels":
+        return run_delete_channels(args.working_dir, args.name)
     if args.command == "gui":
         return run_gui(args.working_dir, args.http_port)
     if args.command == "meshtastic-web":
@@ -545,6 +586,11 @@ def device_backups_entry_point(argv: list[str] | None = None) -> int:
     return _run_subcommand("device-backups", argv)
 
 
+def delete_backup_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshvault delete-backup``."""
+    return _run_subcommand("delete-backup", argv)
+
+
 def list_channels_entry_point(argv: list[str] | None = None) -> int:
     """Console-script shortcut for ``meshvault list-channels``."""
     return _run_subcommand("list-channels", argv)
@@ -558,6 +604,11 @@ def export_channels_entry_point(argv: list[str] | None = None) -> int:
 def import_channels_entry_point(argv: list[str] | None = None) -> int:
     """Console-script shortcut for ``meshvault import-channels``."""
     return _run_subcommand("import-channels", argv)
+
+
+def delete_channels_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshvault delete-channels``."""
+    return _run_subcommand("delete-channels", argv)
 
 
 def gui_entry_point(argv: list[str] | None = None) -> int:
