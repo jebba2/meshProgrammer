@@ -223,6 +223,30 @@ function wireDeviceBackupsForm() {
   });
 }
 
+function wireFlashFirmwareForm() {
+  document.getElementById("flash-firmware-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const resultEl = document.getElementById("flash-firmware-result");
+    const data = await postJSON("/api/flash-firmware", getConnection(event.target));
+    if (!data.ok) {
+      renderResult(resultEl, data);
+      return;
+    }
+    const label = data.hardware_model || "unknown hardware model";
+    const proceed = confirm(
+      `Detected ${data.node_id} (${label}). Open the official Meshtastic web flasher to update its firmware?`
+    );
+    resultEl.classList.remove("result-error");
+    resultEl.classList.add("result-ok");
+    if (!proceed) {
+      resultEl.textContent = "Cancelled.";
+      return;
+    }
+    window.open("https://flasher.meshtastic.org/", "_blank", "noopener,noreferrer");
+    resultEl.textContent = `Detected ${data.node_id} (${label}). Opened the web flasher in a new tab.`;
+  });
+}
+
 function wireExportChannelsForm() {
   document.getElementById("export-channels-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -259,6 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
   wireBackupForm();
   wireRestoreForm();
   wireDeviceBackupsForm();
+  wireFlashFirmwareForm();
   wireExportChannelsForm();
   wireImportChannelsForm();
   refreshDevices();

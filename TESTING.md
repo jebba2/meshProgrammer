@@ -14,7 +14,7 @@ All commands below need the `uv run` prefix shown (e.g. `uv run meshvault-scan`,
 
 ## help / meshvault-help
 
-- [ ] `uv run meshvault help` lists every command (help, scan, backup, restore, list, device-backups, delete-backup, list-channels, export-channels, import-channels, delete-channels, gui, meshtastic-web) with a one-line description
+- [ ] `uv run meshvault help` lists every command (help, scan, backup, restore, list, device-backups, delete-backup, list-channels, export-channels, import-channels, delete-channels, flash-firmware, gui, meshtastic-web) with a one-line description
 - [ ] `uv run meshvault-help` produces the same output
 - [ ] Output matches `uv run meshvault --help`
 - [ ] Output mentions `--port`, `--ble`, and `--encrypt` and which commands accept them
@@ -142,12 +142,24 @@ All commands below need the `uv run` prefix shown (e.g. `uv run meshvault-scan`,
 - [ ] `uv run meshvault-delete-channels <name> --working-dir <DIR>` deletes from that folder instead of `working/`
 - [ ] Doesn't require a device connected
 
+## flash-firmware / meshvault-flash-firmware
+
+`--port` is optional throughout: if omitted and exactly one Meshtastic device is connected, its port is used automatically.
+
+- [ ] `uv run meshvault-flash-firmware [--port <PORT>]` prints the detected node id and hardware model name (e.g. "TBEAM"), then prompts "Open the official Meshtastic web flasher to update its firmware? [y/N]"
+- [ ] Answering "y" opens https://flasher.meshtastic.org/ in the default browser and prints a confirmation line; the device connection is closed first (the web flasher can open the same port)
+- [ ] Answering anything else (or just Enter) prints "Cancelled." and exits 0 without opening a browser
+- [ ] `uv run meshvault flash-firmware [--port <PORT>]` produces the same result as `meshvault-flash-firmware`
+- [ ] `uv run meshvault-flash-firmware --working-dir <DIR>` is rejected (this command doesn't accept it)
+- [ ] On firmware too old to report a hardware model, prints "unknown hardware model" instead of crashing
+- [ ] `uv run meshvault-flash-firmware --ble` detects the device over Bluetooth and additionally prints a note that flashing itself needs a USB connection
+
 ## --port auto-detection edge cases
 
 - [ ] With no device connected, `uv run meshvault-backup` (no `--port`) prints "No Meshtastic devices detected. Specify --port." and exits non-zero
 - [ ] (If you have a second device) with two devices connected, `uv run meshvault-backup` (no `--port`) prints "Multiple devices detected (<PORT1>, <PORT2>). Specify --port to choose one." and exits non-zero
 - [ ] In both cases above, no backup file is written and the device(s) are untouched
-- [ ] The same no-device/multiple-device behavior holds for `meshvault-restore`, `meshvault-device-backups`, `meshvault-export-channels`, and `meshvault-import-channels`
+- [ ] The same no-device/multiple-device behavior holds for `meshvault-restore`, `meshvault-device-backups`, `meshvault-export-channels`, `meshvault-import-channels`, and `meshvault-flash-firmware`
 
 ## --ble
 
@@ -156,12 +168,12 @@ All commands below need the `uv run` prefix shown (e.g. `uv run meshvault-scan`,
 - [ ] `uv run meshvault-backup --port COM5 --ble` is rejected (mutually exclusive)
 - [ ] With no BLE device nearby, `uv run meshvault-backup --ble` fails with a clear error (not a crash), e.g. mentioning "No Meshtastic BLE peripheral ... found"
 - [ ] (If you have a second BLE device) with two BLE devices nearby, `uv run meshvault-backup --ble` (no name) fails with a clear "More than one Meshtastic BLE peripheral ... found" error
-- [ ] The same --ble behavior (connect, name selection, mutual exclusion with --port, clear errors) holds for `meshvault-restore`, `meshvault-device-backups`, `meshvault-export-channels`, and `meshvault-import-channels`
+- [ ] The same --ble behavior (connect, name selection, mutual exclusion with --port, clear errors) holds for `meshvault-restore`, `meshvault-device-backups`, `meshvault-export-channels`, `meshvault-import-channels`, and `meshvault-flash-firmware`
 - [ ] For `meshvault-export-channels`/`meshvault-import-channels`, the channel-set name must come before `--ble` (e.g. `meshvault-export-channels office --ble`), or use `--ble=<name>` -- putting it after a bare `--ble <value>` gets swallowed as the BLE device name instead of the channel-set name
 
 ## gui / meshvault-gui
 
-The GUI covers all 10 device/storage commands above through a browser instead of the terminal -- run through each action below at least once against real hardware.
+The GUI covers all 11 device/storage commands above through a browser instead of the terminal -- run through each action below at least once against real hardware.
 
 - [ ] `uv run meshvault-gui` prints a `http://127.0.0.1:<port>/` URL and opens it in the default browser automatically
 - [ ] `uv run meshvault gui` produces the same result
@@ -181,6 +193,7 @@ The GUI covers all 10 device/storage commands above through a browser instead of
 - [ ] Restore "latest backup for node id" and restore "specific backup file" both succeed for the right target
 - [ ] Restoring an encrypted backup with no password shows an "enter the password" prompt without touching the device; a wrong password shows "Incorrect password" and lets you retry; the correct password restores successfully
 - [ ] "List backups for connected device" matches `meshvault-device-backups` output
+- [ ] "Detect device and update firmware" reports the same node id and hardware model as `meshvault-flash-firmware`; confirming opens https://flasher.meshtastic.org/ in a new tab, and cancelling shows "Cancelled." without opening it
 - [ ] Export channels (plain and encrypted) writes a channel set visible in "Saved channel sets" after refreshing
 - [ ] Import channels (plain) applies successfully; an encrypted set follows the same needs-password / wrong-password / correct-password flow as restore
 - [ ] Each backup filename listed (in "Known devices and backups" and the restore section) has a "Delete" button; clicking it asks for confirmation, and confirming removes just that file and refreshes both lists

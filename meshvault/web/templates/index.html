@@ -76,6 +76,14 @@
     <div class="result" id="device-backups-result"></div>
   </section>
 
+  <section id="flash-firmware-section">
+    <h2>Update firmware</h2>
+    <p>Detects the connected device's hardware model, then opens the official <a href="https://flasher.meshtastic.org/" target="_blank" rel="noopener noreferrer">Meshtastic web flasher</a> to update it. The web flasher uses your browser's Web Serial access over USB, not Bluetooth.</p>
+    <form id="flash-firmware-form" data-connection></form>
+    <button type="submit" form="flash-firmware-form">Detect device and update firmware</button>
+    <p class="result" id="flash-firmware-result"></p>
+  </section>
+
   <section id="export-channels-section">
     <h2>Export channels</h2>
     <form id="export-channels-form" data-connection></form>

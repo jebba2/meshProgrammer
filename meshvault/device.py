@@ -87,6 +87,17 @@ def get_node_id(interface: MeshInterface) -> str:
     return info["user"]["id"]
 
 
+def get_hardware_model(interface: MeshInterface) -> str | None:
+    """Return the connected device's hardware model name (e.g. ``"TBEAM"``).
+
+    Returns None if the device hasn't reported it (older firmware).
+    """
+    info = interface.getMyNodeInfo()
+    if not info or "user" not in info:
+        return None
+    return info["user"].get("hwModel")
+
+
 def backup_from_interface(interface: MeshInterface) -> dict:
     """Read the connected device's config into a JSON-serializable backup payload."""
     node = interface.localNode

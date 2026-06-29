@@ -204,6 +204,23 @@ def create_app(working_dir: Path) -> Flask:
         backups = storage.list_backups(working_dir, node_id)
         return _ok(node_id=node_id, backups=[p.name for p in backups])
 
+    @app.route("/api/flash-firmware", methods=["POST"])
+    def flash_firmware():
+        body = request.get_json() or {}
+        port: str | None = body.get("port")
+        ble: str | None = body.get("ble")
+
+        if ble is None:
+            try:
+                port = connection.resolve_port(port)
+            except connection.PortResolutionError as exc:
+                return _error(str(exc))
+
+        with device.open_device(port, ble) as interface:
+            node_id = device.get_node_id(interface)
+            hardware_model = device.get_hardware_model(interface)
+        return _ok(node_id=node_id, hardware_model=hardware_model)
+
     @app.route("/api/delete-backup", methods=["POST"])
     def delete_backup_route():
         body = request.get_json() or {}

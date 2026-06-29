@@ -16,6 +16,8 @@ from meshvault import backup as backup_module
 from meshvault import connection, crypto, device, meshtastic_web, storage
 from meshvault.web import create_app
 
+FLASHER_URL = "https://flasher.meshtastic.org/"
+
 
 def _add_working_dir_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
@@ -147,6 +149,12 @@ def build_parser() -> argparse.ArgumentParser:
     _add_working_dir_arg(delete_channels_parser)
     delete_channels_parser.add_argument("name", help="Name of the saved channel set to delete")
 
+    flash_firmware_parser = subparsers.add_parser(
+        "flash-firmware",
+        help="Detect a connected device's hardware model and open the official web flasher to update it",
+    )
+    _add_connection_args(flash_firmware_parser)
+
     gui_parser = subparsers.add_parser("gui", help="Start the local web GUI in your browser")
     _add_working_dir_arg(gui_parser)
     gui_parser.add_argument(
@@ -217,6 +225,10 @@ def _prompt_new_password() -> str:
 
 def _prompt_existing_password() -> str:
     return getpass.getpass("Password: ")
+
+
+def _confirm(prompt: str) -> bool:
+    return input(f"{prompt} [y/N] ").strip().lower() in ("y", "yes")
 
 
 def _resolve_port(port: str | None) -> str | None:
@@ -431,6 +443,38 @@ def run_delete_channels(working_dir: Path, name: str) -> int:
     return 0
 
 
+def run_flash_firmware(port: str | None, ble: str | None) -> int:
+    """Detect the connected device's hardware model, then hand off to the official web flasher.
+
+    MeshVault doesn't flash firmware itself -- ESP32 boards need esptool, nRF52/RP2040
+    boards need a UF2 drag-and-drop bootloader, and the official flasher at
+    ``FLASHER_URL`` already handles every board correctly via the browser's Web Serial
+    API. This just identifies the device and, with confirmation, opens that page.
+
+    ``port`` is auto-detected if neither it nor ``ble`` is given.
+    """
+    if ble is None:
+        port = _resolve_port(port)
+        if port is None:
+            return 1
+    with device.open_device(port, ble) as interface:
+        node_id = device.get_node_id(interface)
+        hardware_model = device.get_hardware_model(interface)
+    label = hardware_model or "unknown hardware model"
+    print(f"Detected {node_id} ({label}) on {_connection_label(port, ble)}.")
+    if ble is not None:
+        print(
+            "Note: flashing needs a USB connection -- the web flasher uses your "
+            "browser's Web Serial access, not Bluetooth."
+        )
+    if not _confirm("Open the official Meshtastic web flasher to update its firmware?"):
+        print("Cancelled.")
+        return 0
+    webbrowser.open(FLASHER_URL)
+    print(f"Opened {FLASHER_URL} -- follow its instructions to select your board and flash.")
+    return 0
+
+
 def _start_meshtastic_web_alongside_gui(working_dir: Path) -> Any:
     """Best-effort start of the meshtastic-web client server on its default port.
 
@@ -541,6 +585,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_import_channels(args.working_dir, args.port, args.ble, args.name)
     if args.command == "delete-channels":
         return run_delete_channels(args.working_dir, args.name)
+    if args.command == "flash-firmware":
+        return run_flash_firmware(args.port, args.ble)
     if args.command == "gui":
         return run_gui(args.working_dir, args.http_port)
     if args.command == "meshtastic-web":
@@ -609,6 +655,11 @@ def import_channels_entry_point(argv: list[str] | None = None) -> int:
 def delete_channels_entry_point(argv: list[str] | None = None) -> int:
     """Console-script shortcut for ``meshvault delete-channels``."""
     return _run_subcommand("delete-channels", argv)
+
+
+def flash_firmware_entry_point(argv: list[str] | None = None) -> int:
+    """Console-script shortcut for ``meshvault flash-firmware``."""
+    return _run_subcommand("flash-firmware", argv)
 
 
 def gui_entry_point(argv: list[str] | None = None) -> int:

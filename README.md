@@ -188,6 +188,22 @@ uv run meshvault delete-channels office
 uv run meshvault-delete-channels office
 ```
 
+### `flash-firmware` / `meshvault-flash-firmware`
+
+Detect a connected device's hardware model, then (with confirmation) open the official [Meshtastic web flasher](https://flasher.meshtastic.org/) to update its firmware. `--port` can be omitted if exactly one device is connected.
+
+MeshVault doesn't flash firmware itself: ESP32 boards need [esptool](https://github.com/espressif/esptool) and nRF52/RP2040 boards need a UF2 drag-and-drop bootloader, and the official web flasher already handles every board correctly via the browser's [Web Serial](https://developer.chrome.com/docs/capabilities/serial) access -- so this command identifies the device and hands off to it rather than reimplementing board-specific flashing logic.
+
+```
+uv run meshvault flash-firmware --port COM5
+uv run meshvault-flash-firmware --port COM5
+
+# Omit --port if only one device is connected
+uv run meshvault-flash-firmware
+```
+
+The web flasher needs a USB connection -- it can't flash over Bluetooth -- so `--ble` only helps with detecting the hardware model here, not with the actual flash.
+
 ### `gui` / `meshvault-gui`
 
 Start a local web GUI covering all the commands above, in your browser, instead of using the terminal.
@@ -235,7 +251,7 @@ Encryption uses scrypt (RFC 7914 interactive parameters) to derive a key from th
 
 ### `--port`
 
-`backup`, `restore`, `device-backups`, `export-channels`, and `import-channels` (and their `meshvault-*` shortcuts) accept `--port` to pick which serial port to use. It's optional: if you omit it and exactly one Meshtastic device is connected, that device's port is used automatically. If none are connected, or more than one is, you'll get an error telling you to specify `--port` explicitly.
+`backup`, `restore`, `device-backups`, `export-channels`, `import-channels`, and `flash-firmware` (and their `meshvault-*` shortcuts) accept `--port` to pick which serial port to use. It's optional: if you omit it and exactly one Meshtastic device is connected, that device's port is used automatically. If none are connected, or more than one is, you'll get an error telling you to specify `--port` explicitly.
 
 ```
 uv run meshvault-backup

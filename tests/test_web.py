@@ -317,6 +317,77 @@ def test_device_backups_returns_empty_list_when_none(
     assert response.get_json() == {"ok": True, "node_id": "!a1b2c3d4", "backups": []}
 
 
+def test_flash_firmware_returns_node_id_and_hardware_model(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(web_app.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(web_app.device, "get_node_id", lambda _interface: "!a1b2c3d4")
+    monkeypatch.setattr(web_app.device, "get_hardware_model", lambda _interface: "TBEAM")
+
+    response = client.post("/api/flash-firmware", json={"port": "COM3"})
+    data = response.get_json()
+
+    assert data == {"ok": True, "node_id": "!a1b2c3d4", "hardware_model": "TBEAM"}
+
+
+def test_flash_firmware_returns_null_hardware_model_when_unknown(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(web_app.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(web_app.device, "get_node_id", lambda _interface: "!a1b2c3d4")
+    monkeypatch.setattr(web_app.device, "get_hardware_model", lambda _interface: None)
+
+    response = client.post("/api/flash-firmware", json={"port": "COM3"})
+    data = response.get_json()
+
+    assert data == {"ok": True, "node_id": "!a1b2c3d4", "hardware_model": None}
+
+
+def test_flash_firmware_resolves_port_automatically(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(web_app.device, "scan_ports", lambda: ["COM5"])
+    monkeypatch.setattr(web_app.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(web_app.device, "get_node_id", lambda _interface: "!a1b2c3d4")
+    monkeypatch.setattr(web_app.device, "get_hardware_model", lambda _interface: "TBEAM")
+
+    response = client.post("/api/flash-firmware", json={})
+
+    assert response.get_json()["ok"] is True
+
+
+def test_flash_firmware_returns_error_when_port_unresolved(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(web_app.device, "scan_ports", lambda: [])
+    monkeypatch.setattr(
+        web_app.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
+    )
+
+    response = client.post("/api/flash-firmware", json={})
+    data = response.get_json()
+
+    assert data["ok"] is False
+    assert "No Meshtastic devices detected" in data["error"]
+
+
+def test_flash_firmware_uses_ble_without_resolving_port(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        web_app.device,
+        "scan_ports",
+        lambda: (_ for _ in ()).throw(AssertionError("should not scan when ble given")),
+    )
+    monkeypatch.setattr(web_app.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(web_app.device, "get_node_id", lambda _interface: "!a1b2c3d4")
+    monkeypatch.setattr(web_app.device, "get_hardware_model", lambda _interface: "TBEAM")
+
+    response = client.post("/api/flash-firmware", json={"ble": "any"})
+
+    assert response.get_json()["ok"] is True
+
+
 def test_delete_backup_removes_the_file(client: FlaskClient, tmp_path: Path) -> None:
     path = storage.write_backup(
         tmp_path, "!a1b2c3d4", {"node_id": "!a1b2c3d4"}, datetime(2026, 1, 1, tzinfo=timezone.utc)

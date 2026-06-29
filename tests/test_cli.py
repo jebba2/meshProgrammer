@@ -95,6 +95,7 @@ _CONNECTION_COMMANDS = [
     pytest.param(["device-backups"], id="device-backups"),
     pytest.param(["export-channels", "office"], id="export-channels"),
     pytest.param(["import-channels", "office"], id="import-channels"),
+    pytest.param(["flash-firmware"], id="flash-firmware"),
 ]
 
 
@@ -621,6 +622,103 @@ def test_device_backups_entry_point_without_port_or_device_reports_error(
     assert "No Meshtastic devices detected" in capsys.readouterr().out
 
 
+def test_build_parser_flash_firmware_does_not_accept_working_dir() -> None:
+    parser = cli.build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["flash-firmware", "--working-dir", "/tmp/foo"])
+
+
+def test_run_flash_firmware_prints_detected_device_and_opens_flasher_when_confirmed(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _i: "!a1b2c3d4")
+    monkeypatch.setattr(cli.device, "get_hardware_model", lambda _i: "TBEAM")
+    monkeypatch.setattr(cli, "_confirm", lambda _prompt: True)
+    opened: list[str] = []
+    monkeypatch.setattr(cli.webbrowser, "open", lambda url: opened.append(url))
+
+    result = cli.run_flash_firmware("COM3", None)
+    out = capsys.readouterr().out
+
+    assert result == 0
+    assert "!a1b2c3d4" in out
+    assert "TBEAM" in out
+    assert opened == [cli.FLASHER_URL]
+
+
+def test_run_flash_firmware_does_not_open_flasher_when_declined(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _i: "!a1b2c3d4")
+    monkeypatch.setattr(cli.device, "get_hardware_model", lambda _i: "TBEAM")
+    monkeypatch.setattr(cli, "_confirm", lambda _prompt: False)
+    monkeypatch.setattr(
+        cli.webbrowser, "open", lambda _url: (_ for _ in ()).throw(AssertionError("opened browser"))
+    )
+
+    result = cli.run_flash_firmware("COM3", None)
+
+    assert result == 0
+    assert "Cancelled" in capsys.readouterr().out
+
+
+def test_run_flash_firmware_handles_unknown_hardware_model(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _i: "!a1b2c3d4")
+    monkeypatch.setattr(cli.device, "get_hardware_model", lambda _i: None)
+    monkeypatch.setattr(cli, "_confirm", lambda _prompt: True)
+    monkeypatch.setattr(cli.webbrowser, "open", lambda _url: None)
+
+    result = cli.run_flash_firmware("COM3", None)
+
+    assert result == 0
+    assert "unknown hardware model" in capsys.readouterr().out
+
+
+def test_run_flash_firmware_notes_ble_cannot_flash(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "open_device", _fake_open_device)
+    monkeypatch.setattr(cli.device, "get_node_id", lambda _i: "!a1b2c3d4")
+    monkeypatch.setattr(cli.device, "get_hardware_model", lambda _i: "TBEAM")
+    monkeypatch.setattr(cli, "_confirm", lambda _prompt: False)
+
+    result = cli.run_flash_firmware(None, "any")
+
+    assert result == 0
+    assert "Bluetooth" in capsys.readouterr().out
+
+
+def test_run_flash_firmware_returns_one_without_opening_device_when_port_unresolved(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+    monkeypatch.setattr(
+        cli.device, "open_device", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("opened device"))
+    )
+
+    result = cli.run_flash_firmware(None, None)
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
+def test_flash_firmware_entry_point_without_port_or_device_reports_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli.device, "scan_ports", lambda: [])
+
+    result = cli.flash_firmware_entry_point([])
+
+    assert result == 1
+    assert "No Meshtastic devices detected" in capsys.readouterr().out
+
+
 def test_build_parser_accepts_help_command() -> None:
     parser = cli.build_parser()
 
@@ -894,6 +992,7 @@ def test_run_help_lists_every_command(capsys: pytest.CaptureFixture[str]) -> Non
         "export-channels",
         "import-channels",
         "delete-channels",
+        "flash-firmware",
         "help",
     ]:
         assert command in out

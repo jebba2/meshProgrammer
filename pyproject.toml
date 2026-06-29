@@ -23,6 +23,7 @@ meshvault-list-channels = "meshvault.cli:list_channels_entry_point"
 meshvault-export-channels = "meshvault.cli:export_channels_entry_point"
 meshvault-import-channels = "meshvault.cli:import_channels_entry_point"
 meshvault-delete-channels = "meshvault.cli:delete_channels_entry_point"
+meshvault-flash-firmware = "meshvault.cli:flash_firmware_entry_point"
 meshvault-gui = "meshvault.cli:gui_entry_point"
 meshvault-meshtastic-web = "meshvault.cli:meshtastic_web_entry_point"
 
