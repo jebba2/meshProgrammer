@@ -1,6 +1,6 @@
 from meshtastic.protobuf import localonly_pb2
 
-from meshprogrammer import backup
+from meshvault import backup
 
 
 def _sample_local_config() -> localonly_pb2.LocalConfig:

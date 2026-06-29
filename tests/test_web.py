@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from flask.testing import FlaskClient
 
-from meshprogrammer import crypto, storage
-from meshprogrammer.web import app as web_app
+from meshvault import crypto, storage
+from meshvault.web import app as web_app
 
 
 @contextmanager
@@ -152,7 +152,7 @@ def test_backup_returns_error_when_port_unresolved(
 def test_restore_with_filename_restores_plain_backup(
     client: FlaskClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from meshprogrammer.backup import build_backup_payload
+    from meshvault.backup import build_backup_payload
     from meshtastic.protobuf import localonly_pb2
 
     payload = build_backup_payload(
@@ -220,7 +220,7 @@ def test_restore_with_filename_wrong_password_returns_needs_password(
 def test_restore_with_filename_correct_password_succeeds(
     client: FlaskClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from meshprogrammer.backup import build_backup_payload
+    from meshvault.backup import build_backup_payload
     from meshtastic.protobuf import localonly_pb2
 
     payload = build_backup_payload(
@@ -245,7 +245,7 @@ def test_restore_with_filename_correct_password_succeeds(
 def test_restore_with_node_id_uses_latest_backup(
     client: FlaskClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from meshprogrammer.backup import build_backup_payload
+    from meshvault.backup import build_backup_payload
     from meshtastic.protobuf import localonly_pb2
 
     payload = build_backup_payload(
@@ -272,7 +272,7 @@ def test_restore_with_node_id_returns_error_when_no_backups(client: FlaskClient)
 def test_restore_with_neither_uses_connected_device_node_id(
     client: FlaskClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from meshprogrammer.backup import build_backup_payload
+    from meshvault.backup import build_backup_payload
     from meshtastic.protobuf import localonly_pb2
 
     payload = build_backup_payload(

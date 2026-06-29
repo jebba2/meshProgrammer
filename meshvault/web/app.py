@@ -1,4 +1,4 @@
-"""Flask app exposing meshprogrammer's commands as a local browser GUI.
+"""Flask app exposing MeshVault's commands as a local browser GUI.
 
 Routes are a 1:1 JSON-API mirror of the ``run_*`` command functions in
 ``cli.py``, reusing the same ``device``/``storage``/``crypto``/``backup``/
@@ -17,8 +17,8 @@ from urllib.parse import urlsplit
 from flask import Flask, Response, abort, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException
 
-from meshprogrammer import backup as backup_module
-from meshprogrammer import connection, crypto, device, meshtastic_web, storage
+from meshvault import backup as backup_module
+from meshvault import connection, crypto, device, meshtastic_web, storage
 
 
 def _ok(**data: Any) -> Response:

@@ -1,6 +1,6 @@
 import pytest
 
-from meshprogrammer import crypto
+from meshvault import crypto
 
 
 def test_encrypt_then_decrypt_round_trips_with_correct_password() -> None:

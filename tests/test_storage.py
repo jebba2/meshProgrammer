@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from meshprogrammer import storage
+from meshvault import storage
 
 
 def test_device_dir_is_named_by_node_id(tmp_path: Path) -> None:

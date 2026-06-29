@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from meshprogrammer.crypto import is_encrypted
+from meshvault.crypto import is_encrypted
 
 DEFAULT_WORKING_DIR = Path("working")
 

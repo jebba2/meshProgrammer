@@ -1,6 +1,6 @@
 import pytest
 
-from meshprogrammer import connection
+from meshvault import connection
 
 
 def test_resolve_port_returns_explicit_port_without_scanning(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -6,7 +6,7 @@ message for the CLI, a JSON error for the GUI), so that reporting is left to
 each caller via ``PortResolutionError.ports``.
 """
 
-from meshprogrammer import device
+from meshvault import device
 
 
 class PortResolutionError(Exception):

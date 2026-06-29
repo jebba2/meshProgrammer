@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from meshtastic.protobuf import localonly_pb2
 
-from meshprogrammer import backup as backup_module
-from meshprogrammer import cli, crypto, meshtastic_web, storage
+from meshvault import backup as backup_module
+from meshvault import cli, crypto, meshtastic_web, storage
 
 
 @contextmanager

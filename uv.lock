@@ -353,8 +353,27 @@ wheels = [
 ]
 
 [[package]]
-name = "meshprogrammer"
-version = "1.0.1"
+name = "meshtastic"
+version = "2.7.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "bleak" },
+    { name = "packaging" },
+    { name = "protobuf" },
+    { name = "pypubsub" },
+    { name = "pyserial" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "tabulate" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/c8/d1ef12b2e02a61202a1a21344a23746d5dfa4e9298e5c6d5dabdc0b87097/meshtastic-2.7.9.tar.gz", hash = "sha256:e56c20a0ce816fa302ddb2e6aa0390cb32f0d0e017803716c0048904f92706d1", size = 350430, upload-time = "2026-06-09T02:01:52.939Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/7d/35de57753e947214bbeb17f9c85ca7f6231fbdca933255b3d844833ab814/meshtastic-2.7.9-py3-none-any.whl", hash = "sha256:6e4c4c58cd392469e88df1a86abcdebff942ac15520963fac500a4296ed87675", size = 401826, upload-time = "2026-06-09T02:01:50.848Z" },
+]
+
+[[package]]
+name = "meshvault"
+version = "1.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
@@ -379,25 +398,6 @@ requires-dist = [
 dev = [
     { name = "pyright", specifier = ">=1.1.411" },
     { name = "pytest", specifier = ">=9.1.1" },
-]
-
-[[package]]
-name = "meshtastic"
-version = "2.7.9"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "bleak" },
-    { name = "packaging" },
-    { name = "protobuf" },
-    { name = "pypubsub" },
-    { name = "pyserial" },
-    { name = "pyyaml" },
-    { name = "requests" },
-    { name = "tabulate" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/c8/d1ef12b2e02a61202a1a21344a23746d5dfa4e9298e5c6d5dabdc0b87097/meshtastic-2.7.9.tar.gz", hash = "sha256:e56c20a0ce816fa302ddb2e6aa0390cb32f0d0e017803716c0048904f92706d1", size = 350430, upload-time = "2026-06-09T02:01:52.939Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/43/7d/35de57753e947214bbeb17f9c85ca7f6231fbdca933255b3d844833ab814/meshtastic-2.7.9-py3-none-any.whl", hash = "sha256:6e4c4c58cd392469e88df1a86abcdebff942ac15520963fac500a4296ed87675", size = 401826, upload-time = "2026-06-09T02:01:50.848Z" },
 ]
 
 [[package]]

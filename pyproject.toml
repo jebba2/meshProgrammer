@@ -1,7 +1,7 @@
 [project]
-name = "meshprogrammer"
-version = "1.0.1"
-description = "CLI for backing up and restoring Meshtastic device configs"
+name = "meshvault"
+version = "1.1.0"
+description = "MeshVault: CLI and web GUI for backing up and restoring Meshtastic device configs"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -11,18 +11,18 @@ dependencies = [
 ]
 
 [project.scripts]
-meshprogrammer = "meshprogrammer.cli:main"
-mesh-help = "meshprogrammer.cli:help_entry_point"
-mesh-scan = "meshprogrammer.cli:scan_entry_point"
-mesh-backup = "meshprogrammer.cli:backup_entry_point"
-mesh-restore = "meshprogrammer.cli:restore_entry_point"
-mesh-list = "meshprogrammer.cli:list_entry_point"
-mesh-device-backups = "meshprogrammer.cli:device_backups_entry_point"
-mesh-list-channels = "meshprogrammer.cli:list_channels_entry_point"
-mesh-export-channels = "meshprogrammer.cli:export_channels_entry_point"
-mesh-import-channels = "meshprogrammer.cli:import_channels_entry_point"
-mesh-gui = "meshprogrammer.cli:gui_entry_point"
-mesh-meshtastic-web = "meshprogrammer.cli:meshtastic_web_entry_point"
+meshvault = "meshvault.cli:main"
+meshvault-help = "meshvault.cli:help_entry_point"
+meshvault-scan = "meshvault.cli:scan_entry_point"
+meshvault-backup = "meshvault.cli:backup_entry_point"
+meshvault-restore = "meshvault.cli:restore_entry_point"
+meshvault-list = "meshvault.cli:list_entry_point"
+meshvault-device-backups = "meshvault.cli:device_backups_entry_point"
+meshvault-list-channels = "meshvault.cli:list_channels_entry_point"
+meshvault-export-channels = "meshvault.cli:export_channels_entry_point"
+meshvault-import-channels = "meshvault.cli:import_channels_entry_point"
+meshvault-gui = "meshvault.cli:gui_entry_point"
+meshvault-meshtastic-web = "meshvault.cli:meshtastic_web_entry_point"
 
 [build-system]
 requires = ["hatchling"]

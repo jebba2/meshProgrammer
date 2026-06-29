@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from meshprogrammer import meshtastic_web
+from meshvault import meshtastic_web
 
 
 def _write_fake_release_tar(dest: Path, files: dict[str, bytes]) -> None:

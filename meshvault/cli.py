@@ -12,9 +12,9 @@ from typing import Any
 from meshtastic.mesh_interface import MeshInterface
 from werkzeug.serving import make_server
 
-from meshprogrammer import backup as backup_module
-from meshprogrammer import connection, crypto, device, meshtastic_web, storage
-from meshprogrammer.web import create_app
+from meshvault import backup as backup_module
+from meshvault import connection, crypto, device, meshtastic_web, storage
+from meshvault.web import create_app
 
 
 def _add_working_dir_arg(parser: argparse.ArgumentParser) -> None:
@@ -46,21 +46,21 @@ def _add_connection_args(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the meshprogrammer argument parser.
+    """Build the MeshVault argument parser.
 
     ``--working-dir`` is defined per-subcommand (rather than on the top-level
     parser) so it works the same way whether typed before or after the
-    subcommand name -- the latter is required for the mesh-* script shortcuts,
-    which always prepend the subcommand themselves.
+    subcommand name -- the latter is required for the meshvault-* script
+    shortcuts, which always prepend the subcommand themselves.
     """
     parser = argparse.ArgumentParser(
-        prog="meshprogrammer",
+        prog="meshvault",
         description="Backup and restore Meshtastic device configs",
         epilog=(
             "backup, restore, device-backups, export-channels, and import-channels accept "
             "--port (auto-detected if exactly one device is connected) or --ble to connect "
             "over Bluetooth instead. backup and export-channels also accept --encrypt to "
-            "password-protect the saved file. Run 'meshprogrammer <command> --help' for a "
+            "password-protect the saved file. Run 'meshvault <command> --help' for a "
             "command's full options."
         ),
     )
@@ -400,7 +400,7 @@ def _start_meshtastic_web_alongside_gui(working_dir: Path) -> Any:
     Returns the running server (already serving in a background thread),
     or None if it couldn't be started -- e.g. no network for a first-time
     download, or the port's already taken by a separately-running
-    ``mesh-meshtastic-web``. Either way, ``gui`` keeps working without it.
+    ``meshvault-meshtastic-web``. Either way, ``gui`` keeps working without it.
     """
     try:
         client_dir = meshtastic_web.ensure_client_downloaded(working_dir)
@@ -441,7 +441,7 @@ def run_gui(working_dir: Path, http_port: int | None, open_browser: bool = True)
 
     meshtastic_web_server = _start_meshtastic_web_alongside_gui(working_dir)
 
-    print(f"meshprogrammer GUI running at {url} (Ctrl+C to stop)")
+    print(f"MeshVault GUI running at {url} (Ctrl+C to stop)")
     if open_browser:
         webbrowser.open(url)
     try:
@@ -516,57 +516,57 @@ def _run_subcommand(subcommand: str, argv: list[str] | None = None) -> int:
 
 
 def help_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer help``."""
+    """Console-script shortcut for ``meshvault help``."""
     return _run_subcommand("help", argv)
 
 
 def scan_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer scan``."""
+    """Console-script shortcut for ``meshvault scan``."""
     return _run_subcommand("scan", argv)
 
 
 def backup_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer backup``."""
+    """Console-script shortcut for ``meshvault backup``."""
     return _run_subcommand("backup", argv)
 
 
 def restore_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer restore``."""
+    """Console-script shortcut for ``meshvault restore``."""
     return _run_subcommand("restore", argv)
 
 
 def list_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer list``."""
+    """Console-script shortcut for ``meshvault list``."""
     return _run_subcommand("list", argv)
 
 
 def device_backups_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer device-backups``."""
+    """Console-script shortcut for ``meshvault device-backups``."""
     return _run_subcommand("device-backups", argv)
 
 
 def list_channels_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer list-channels``."""
+    """Console-script shortcut for ``meshvault list-channels``."""
     return _run_subcommand("list-channels", argv)
 
 
 def export_channels_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer export-channels``."""
+    """Console-script shortcut for ``meshvault export-channels``."""
     return _run_subcommand("export-channels", argv)
 
 
 def import_channels_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer import-channels``."""
+    """Console-script shortcut for ``meshvault import-channels``."""
     return _run_subcommand("import-channels", argv)
 
 
 def gui_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer gui``."""
+    """Console-script shortcut for ``meshvault gui``."""
     return _run_subcommand("gui", argv)
 
 
 def meshtastic_web_entry_point(argv: list[str] | None = None) -> int:
-    """Console-script shortcut for ``meshprogrammer meshtastic-web``."""
+    """Console-script shortcut for ``meshvault meshtastic-web``."""
     return _run_subcommand("meshtastic-web", argv)
 
 

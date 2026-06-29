@@ -20,7 +20,7 @@ from meshtastic.ble_interface import BLEInterface
 from meshtastic.mesh_interface import MeshInterface
 from meshtastic.serial_interface import SerialInterface
 
-from meshprogrammer.backup import BackupData, build_backup_payload
+from meshvault.backup import BackupData, build_backup_payload
 
 LOCAL_CONFIG_FIELDS = [
     "device",
